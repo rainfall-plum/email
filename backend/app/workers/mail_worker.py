@@ -5,7 +5,11 @@ from uuid import uuid4
 from app.config.logging import configure_logging, get_logger, reset_request_id, set_request_id
 from app.config.settings import get_settings
 from app.database.session import SessionLocal
-from app.services.mail_receive_service import MailReceiveError, store_received_mail
+from app.services.mail_receive_service import (
+    MailboxNotFoundError,
+    MailReceiveError,
+    store_received_mail,
+)
 from app.services.parser_service import MailParseError, parse_email
 
 worker_logger = get_logger("worker")
@@ -29,6 +33,9 @@ def process_message(raw_message: bytes, recipient: str | None = None) -> int:
             db.close()
         worker_logger.info("Mail worker completed receiver=%s", parsed.receiver)
         return 0
+    except MailboxNotFoundError as exc:
+        worker_logger.warning("Mail worker permanently rejected message reason=%s", exc)
+        return 67
     except (MailParseError, MailReceiveError) as exc:
         worker_logger.error("Mail worker rejected message reason=%s", exc)
         return 75

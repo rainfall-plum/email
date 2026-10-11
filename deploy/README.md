@@ -20,7 +20,7 @@
 5. 复制 `env/app.env.example` 为 `/etc/email-platform/app.env`，填写真实部署值并设置 `chmod 600`。
 6. 安装并审核 `systemd/email-platform.service`。
 7. 安装并审核 `nginx/email-platform.conf.example`，再配置证书。
-8. 按 `postfix/README.md` 配置单域名 pipe 路由。
+8. 按 `postfix/main.cf.example` 和 `postfix/master.cf.example` 配置单域名 pipe 路由。Postfix 接受该域名的动态收件人，Worker 再通过 SQLite 判断邮箱是否存在；未知邮箱应以永久失败返回，避免重复重试。
 9. 启动服务并检查：
 
    ```bash

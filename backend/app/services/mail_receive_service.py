@@ -19,6 +19,10 @@ class MailReceiveError(Exception):
     pass
 
 
+class MailboxNotFoundError(MailReceiveError):
+    """Permanent SMTP rejection for an unknown or disabled mailbox."""
+
+
 def _save_eml(raw_message: bytes, data_dir: Path) -> Path:
     eml_dir = data_dir / "eml"
     eml_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +81,7 @@ def store_received_mail(
     mailbox = _find_mailbox(db, parsed_mail.receiver)
     if mailbox is None:
         mail_logger.warning("Recipient mailbox not found or disabled receiver=%s", parsed_mail.receiver)
-        raise MailReceiveError("收件邮箱不存在或已停用")
+        raise MailboxNotFoundError("收件邮箱不存在或已停用")
     eml_path = _save_eml(raw_message, settings.data_dir)
     saved_attachments = []
     email = Email(

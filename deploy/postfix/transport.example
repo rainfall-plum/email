@@ -1,2 +1,5 @@
-# Replace the domain with the one configured in app.env.
+# Legacy transport-map example. The recommended configuration uses
+# virtual_mailbox_domains + virtual_transport in main.cf.example so dynamic
+# local parts are accepted and validated by SQLite in the worker.
+# Replace the domain only if transport_maps is intentionally used instead.
 REPLACE_WITH_SINGLE_DOMAIN email-platform:
