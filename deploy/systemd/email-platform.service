@@ -1,0 +1,21 @@
+[Unit]
+Description=Email Receiving Platform API
+After=network.target
+
+[Service]
+Type=simple
+User=emailplatform
+Group=emailplatform
+WorkingDirectory=/opt/email-platform/backend
+EnvironmentFile=/etc/email-platform/app.env
+ExecStart=/opt/email-platform/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/email-platform /var/log/email-platform
+
+[Install]
+WantedBy=multi-user.target

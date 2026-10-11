@@ -1,0 +1,3 @@
+# Add this service block to /etc/postfix/master.cf after review.
+email-platform unix  -       n       n       -       -       pipe
+  flags=Rq user=emailplatform argv=/opt/email-platform/.venv/bin/python -m app.workers.mail_worker --recipient ${recipient}

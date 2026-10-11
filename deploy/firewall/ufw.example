@@ -1,0 +1,8 @@
+# Review and execute manually on Ubuntu; this file is documentation, not an auto-run script.
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp comment 'SSH - restrict source if possible'
+ufw allow 25/tcp comment 'SMTP'
+ufw allow 80/tcp comment 'HTTP redirect'
+ufw allow 443/tcp comment 'HTTPS'
+ufw enable

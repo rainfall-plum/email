@@ -1,0 +1,137 @@
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from email import policy
+from email.parser import BytesParser
+from email.utils import getaddresses, parsedate_to_datetime
+
+from app.config.logging import get_logger
+
+parser_logger = get_logger("parser")
+
+
+class MailParseError(Exception):
+    pass
+
+
+@dataclass(slots=True)
+class ParsedAttachment:
+    original_name: str
+    mime_type: str
+    content: bytes
+
+
+@dataclass(slots=True)
+class ParsedMail:
+    sender: str
+    receiver: str
+    subject: str | None
+    message_date: datetime | None
+    received_at: datetime
+    body_text: str | None
+    body_html: str | None
+    attachments: list[ParsedAttachment]
+
+
+def _header_address(message, names: tuple[str, ...]) -> str | None:
+    for name in names:
+        value = message.get(name)
+        if not value:
+            continue
+        addresses = getaddresses([value])
+        if addresses and addresses[0][1]:
+            return addresses[0][1].strip().lower()
+    return None
+
+
+def _parse_date(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+        if parsed is None:
+            return None
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError, IndexError):
+        parser_logger.warning("Invalid mail Date header")
+        return None
+
+
+def _part_content(part) -> str:
+    try:
+        content = part.get_content()
+        return content if isinstance(content, str) else str(content)
+    except (LookupError, UnicodeError, ValueError):
+        payload = part.get_payload(decode=True)
+        if payload is None:
+            return ""
+        return payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+
+
+def parse_email(raw_message: bytes) -> ParsedMail:
+    if not raw_message:
+        raise MailParseError("邮件内容为空")
+    try:
+        message = BytesParser(policy=policy.default).parsebytes(raw_message)
+        sender = _header_address(message, ("From",))
+        receiver = _header_address(message, ("X-Original-To", "Delivered-To", "To"))
+        if not sender or not receiver:
+            raise MailParseError("邮件缺少有效的发件人或收件人")
+
+        body_text: str | None = None
+        body_html: str | None = None
+        attachments: list[ParsedAttachment] = []
+        if message.is_multipart():
+            parts = message.walk()
+        else:
+            parts = (message,)
+        for part in parts:
+            if part.is_multipart():
+                continue
+            filename = part.get_filename()
+            disposition = part.get_content_disposition()
+            if disposition == "attachment" or filename:
+                payload = part.get_payload(decode=True)
+                if payload is None:
+                    parser_logger.warning("Attachment payload is empty filename=%s", filename)
+                    continue
+                attachments.append(
+                    ParsedAttachment(
+                        original_name=filename or "unnamed-attachment",
+                        mime_type=part.get_content_type(),
+                        content=payload,
+                    )
+                )
+                continue
+            content_type = part.get_content_type().lower()
+            if content_type == "text/plain" and body_text is None:
+                body_text = _part_content(part)
+            elif content_type == "text/html" and body_html is None:
+                body_html = _part_content(part)
+
+        parsed = ParsedMail(
+            sender=sender,
+            receiver=receiver,
+            subject=str(message.get("Subject")) if message.get("Subject") else None,
+            message_date=_parse_date(message.get("Date")),
+            received_at=datetime.now(timezone.utc),
+            body_text=body_text,
+            body_html=body_html,
+            attachments=attachments,
+        )
+        parser_logger.debug(
+            "Parsed mail sender=%s receiver=%s subject=%s has_text=%s has_html=%s attachments=%s",
+            parsed.sender,
+            parsed.receiver,
+            parsed.subject,
+            parsed.body_text is not None,
+            parsed.body_html is not None,
+            len(parsed.attachments),
+        )
+        return parsed
+    except MailParseError:
+        raise
+    except Exception as exc:
+        parser_logger.error("MIME parsing failed", exc_info=True)
+        raise MailParseError("邮件解析失败") from exc

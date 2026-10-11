@@ -1,0 +1,9 @@
+[sshd]
+enabled = true
+port = ssh
+logpath = %(sshd_log)s
+maxretry = 5
+findtime = 10m
+bantime = 1h
+
+# Add an application-specific filter only after confirming the deployed log format.

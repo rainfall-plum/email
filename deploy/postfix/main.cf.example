@@ -1,0 +1,10 @@
+# Single-domain development/production review template.
+# Replace placeholders before installing. Do not append blindly to main.cf.
+myhostname = REPLACE_WITH_HOSTNAME
+mydestination = $myhostname, localhost.$mydomain, localhost
+virtual_alias_domains = REPLACE_WITH_SINGLE_DOMAIN
+transport_maps = hash:/etc/postfix/transport
+disable_vrfy_command = yes
+smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination
+
+# Add the pipe service from master.cf.example, then reload Postfix.
