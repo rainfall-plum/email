@@ -38,6 +38,8 @@ async function load() {
   } catch { ElMessage.error('邮箱数据加载失败，请稍后重试') } finally { loading.value = false }
 }
 function resetPageAndLoad() { page.value = 1; void load() }
+function onTagsChange() { if (filters.tag_ids.length) filters.untagged = false; resetPageAndLoad() }
+function onUntaggedChange() { if (filters.untagged) filters.tag_ids = []; resetPageAndLoad() }
 function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.name || `#${id}` }
 function formatDate(value: string | null) { return value ? new Date(value).toLocaleString('zh-CN') : '暂无邮件' }
 function openMailbox(id: number) { router.push(`/mailboxes/${id}`) }
@@ -84,9 +86,9 @@ onMounted(load)
   </div>
   <el-card class="panel-card filter-card" shadow="never">
     <div class="filter-grid">
-      <el-form-item label="标签"><el-select v-model="filters.tag_ids" multiple filterable clearable placeholder="全部标签" @change="resetPageAndLoad"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item>
+      <el-form-item label="标签"><el-select v-model="filters.tag_ids" multiple filterable clearable placeholder="全部标签" @change="onTagsChange"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item>
       <el-form-item v-if="filters.tag_ids.length" label="匹配"><el-radio-group v-model="filters.tag_mode" @change="resetPageAndLoad"><el-radio-button value="any">任一标签</el-radio-button><el-radio-button value="all">全部标签</el-radio-button></el-radio-group></el-form-item>
-      <el-checkbox v-model="filters.untagged" @change="resetPageAndLoad">只看无标签</el-checkbox>
+      <el-checkbox v-model="filters.untagged" @change="onUntaggedChange">只看无标签</el-checkbox>
       <el-form-item label="排序"><el-select v-model="filters.sort_by" @change="resetPageAndLoad"><el-option label="创建时间：最新" value="created_desc" /><el-option label="创建时间：最旧" value="created_asc" /><el-option label="最新邮件：最新" value="latest_email_desc" /><el-option label="最早邮件：最早" value="oldest_email_asc" /><el-option label="未读优先" value="unread_desc" /><el-option label="邮箱地址：A-Z" value="email_asc" /><el-option label="邮箱地址：Z-A" value="email_desc" /></el-select></el-form-item>
       <el-button @click="load" :loading="loading">刷新</el-button>
     </div>
