@@ -13,6 +13,7 @@ const loading = ref(false)
 const createVisible = ref(false)
 const batchVisible = ref(false)
 const form = reactive({ local_part: '', display_name: '', tag_ids: [] as number[] })
+const batchTagIds = ref<number[]>([])
 const count = ref(100)
 
 async function load() {
@@ -25,7 +26,7 @@ async function create() {
   catch (error: any) { ElMessage.error(error.response?.data?.detail || '邮箱创建失败') }
 }
 async function batch() {
-  try { const result = await mailboxApi.batch(count.value); ElMessage.success(`成功生成 ${result.mailboxes.length} 个邮箱`); batchVisible.value = false; await load() }
+  try { const result = await mailboxApi.batch(count.value, batchTagIds.value); ElMessage.success(`成功生成 ${result.mailboxes.length} 个邮箱`); batchVisible.value = false; batchTagIds.value = []; await load() }
   catch (error: any) { ElMessage.error(error.response?.data?.detail || '批量生成失败') }
 }
 async function remove(mailbox: Mailbox) {
@@ -38,7 +39,7 @@ onMounted(load)
 
 <template>
   <div class="page-heading"><div><h1>邮箱管理</h1><p>创建并管理单域名接收邮箱</p></div><div><el-button @click="batchVisible = true">批量生成</el-button><el-button type="primary" @click="createVisible = true">创建邮箱</el-button></div></div>
-  <el-card class="panel-card"><el-table v-loading="loading" :data="mailboxes" stripe><el-table-column prop="email_address" label="邮箱地址" min-width="250"><template #default="{ row }"><el-link type="primary" @click="router.push(`/mailboxes/${row.id}`)">{{ row.email_address }}</el-link></template></el-table-column><el-table-column prop="display_name" label="显示名称" /><el-table-column label="标签"><template #default="{ row }"><el-tag v-for="id in row.tag_ids" :key="id" size="small" style="margin-right: 4px">{{ tagName(id) }}</el-tag><span v-if="!row.tag_ids" class="muted">无</span></template></el-table-column><el-table-column label="状态"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column><el-table-column prop="created_source" label="来源" /><el-table-column label="操作" width="150"><template #default="{ row }"><el-button link type="primary" @click="router.push(`/mailboxes/${row.id}`)">查看邮件</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column></el-table></el-card>
+  <el-card class="panel-card"><el-table v-loading="loading" :data="mailboxes" stripe empty-text="暂无邮箱"><el-table-column prop="email_address" label="邮箱地址" min-width="250"><template #default="{ row }"><el-link type="primary" @click="router.push(`/mailboxes/${row.id}`)">{{ row.email_address }}</el-link></template></el-table-column><el-table-column prop="display_name" label="显示名称" show-overflow-tooltip /><el-table-column label="标签" min-width="180"><template #default="{ row }"><el-tag v-for="id in row.tag_ids" :key="id" size="small" class="table-tag">{{ tagName(id) }}</el-tag><span v-if="row.tag_ids.length === 0" class="muted">无</span></template></el-table-column><el-table-column label="状态"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column><el-table-column prop="created_source" label="来源" /><el-table-column label="操作" width="190" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="router.push(`/mailboxes/${row.id}`)">查看邮件</el-button><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column></el-table></el-card>
   <el-dialog v-model="createVisible" title="创建邮箱" width="500px"><el-form label-position="top"><el-form-item label="邮箱前缀"><el-input v-model="form.local_part" placeholder="只允许 a-z、0-9" /></el-form-item><el-form-item label="显示名称"><el-input v-model="form.display_name" /></el-form-item><el-form-item label="标签"><el-select v-model="form.tag_ids" multiple style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item></el-form><template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" @click="create">创建</el-button></template></el-dialog>
-  <el-dialog v-model="batchVisible" title="批量生成邮箱" width="420px"><p class="muted">系统将从本地 JSON 名字库生成邮箱，开发名字库支持最多 100 个测试邮箱。</p><el-input-number v-model="count" :min="1" :max="1000" /><template #footer><el-button @click="batchVisible = false">取消</el-button><el-button type="primary" @click="batch">开始生成</el-button></template></el-dialog>
+  <el-dialog v-model="batchVisible" title="批量生成邮箱" width="460px"><p class="muted">系统将从 JSON 名字库生成邮箱，单次最多生成 1000 个。</p><el-form label-position="top"><el-form-item label="生成数量"><el-input-number v-model="count" :min="1" :max="1000" /></el-form-item><el-form-item label="统一标签"><el-select v-model="batchTagIds" multiple filterable clearable placeholder="可选" style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item></el-form><template #footer><el-button @click="batchVisible = false">取消</el-button><el-button type="primary" :loading="loading" @click="batch">开始生成</el-button></template></el-dialog>
 </template>

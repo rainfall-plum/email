@@ -48,6 +48,18 @@ def get_mailboxes(
     return [_response(mailbox) for mailbox in list_mailboxes(db)]
 
 
+@router.get("/{mailbox_id}", response_model=MailboxResponse)
+def get_mailbox_detail(
+    mailbox_id: int,
+    _: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> MailboxResponse:
+    try:
+        return _response(get_mailbox(db, mailbox_id))
+    except MailboxServiceError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+
+
 @router.post("", response_model=MailboxResponse, status_code=status.HTTP_201_CREATED)
 def post_mailbox(
     payload: MailboxCreateRequest,

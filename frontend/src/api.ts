@@ -37,11 +37,12 @@ export const authApi = {
 
 export const mailboxApi = {
   async list() { return (await api.get<Mailbox[]>('/mailboxes')).data },
+  async get(id: number) { return (await api.get<Mailbox>(`/mailboxes/${id}`)).data },
   async create(payload: { local_part: string; display_name?: string; tag_ids?: number[] }) {
     return (await api.post<Mailbox>('/mailboxes', payload)).data
   },
-  async batch(count: number) {
-    return (await api.post<{ mailboxes: Mailbox[] }>('/mailboxes/batch', { count })).data
+  async batch(count: number, tag_ids: number[] = []) {
+    return (await api.post<{ mailboxes: Mailbox[] }>('/mailboxes/batch', { count, tag_ids })).data
   },
   async update(id: number, payload: Partial<Mailbox>) { return (await api.put<Mailbox>(`/mailboxes/${id}`, payload)).data },
   async remove(id: number) { await api.delete(`/mailboxes/${id}`) },

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { authApi } from '../api'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -24,13 +25,14 @@ async function submit() {
 
 <template>
   <div class="login-page">
+    <div class="login-theme"><ThemeSwitcher /></div>
     <el-card class="login-card">
       <div class="login-brand">MAIL<span>BOX</span></div>
-      <div class="login-subtitle">管理员邮箱接收平台 · Local Development</div>
+      <div class="login-subtitle">单域名管理员邮箱接收平台</div>
       <el-form @submit.prevent="submit" label-position="top">
         <el-form-item label="管理员用户名"><el-input v-model="form.username" autocomplete="username" placeholder="输入管理员用户名" /></el-form-item>
         <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password autocomplete="current-password" placeholder="输入密码" @keyup.enter="submit" /></el-form-item>
-        <el-button type="primary" class="w-full" :loading="loading" @click="submit">登录后台</el-button>
+        <el-button type="primary" class="w-full" :loading="loading" native-type="submit" @click="submit">登录后台</el-button>
       </el-form>
     </el-card>
   </div>

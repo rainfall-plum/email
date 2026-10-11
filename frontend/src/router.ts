@@ -11,13 +11,13 @@ import { hasAccessToken } from './utils/email'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: Login },
+    { path: '/login', name: '管理员登录', component: Login },
     { path: '/', redirect: '/dashboard' },
-    { path: '/dashboard', component: Dashboard, meta: { requiresAuth: true } },
-    { path: '/mailboxes', component: Mailboxes, meta: { requiresAuth: true } },
-    { path: '/mailboxes/:id', component: MailboxDetail, meta: { requiresAuth: true } },
-    { path: '/emails/:id', component: EmailDetail, meta: { requiresAuth: true } },
-    { path: '/tags', component: Tags, meta: { requiresAuth: true } },
+    { path: '/dashboard', name: '运行概览', component: Dashboard, meta: { requiresAuth: true } },
+    { path: '/mailboxes', name: '邮箱管理', component: Mailboxes, meta: { requiresAuth: true } },
+    { path: '/mailboxes/:id', name: '邮箱详情', component: MailboxDetail, meta: { requiresAuth: true } },
+    { path: '/emails/:id', name: '邮件详情', component: EmailDetail, meta: { requiresAuth: true } },
+    { path: '/tags', name: '标签管理', component: Tags, meta: { requiresAuth: true } },
   ],
 })
 

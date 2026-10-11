@@ -53,6 +53,25 @@ def test_mailbox_and_tag_api_requires_admin_and_supports_crud(tmp_path, monkeypa
             assert created.json()["email_address"].endswith("@example.test")
             assert created.json()["tag_ids"] == [tag_id]
 
+            detail = client.get(f"/api/mailboxes/{mailbox_id}", headers=headers)
+            assert detail.status_code == 200
+            assert detail.json()["tag_ids"] == [tag_id]
+
+            renamed = client.put(
+                f"/api/tags/{tag_id}", headers=headers, json={"name": "renamed"}
+            )
+            assert renamed.status_code == 200
+            detail_after_rename = client.get(
+                f"/api/mailboxes/{mailbox_id}", headers=headers
+            )
+            assert detail_after_rename.json()["tag_ids"] == [tag_id]
+
+            updated = client.put(
+                f"/api/mailboxes/{mailbox_id}", headers=headers, json={"tag_ids": []}
+            )
+            assert updated.status_code == 200
+            assert updated.json()["tag_ids"] == []
+
             duplicate = client.post(
                 "/api/mailboxes", headers=headers, json={"local_part": "alice.wang"}
             )
