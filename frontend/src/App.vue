@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeFilled, MessageBox, PriceTag, SwitchButton } from '@element-plus/icons-vue'
+import { HomeFilled, MessageBox, PriceTag, Setting, SwitchButton } from '@element-plus/icons-vue'
 
 import { authApi } from './api'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
@@ -23,9 +23,10 @@ function logout() {
       <div class="brand">MAIL<span>BOX</span></div>
       <div class="brand-caption">管理员邮箱接收平台</div>
       <el-menu :default-active="route.path" router class="main-menu" aria-label="主导航">
-        <el-menu-item index="/dashboard"><el-icon><HomeFilled /></el-icon>Dashboard</el-menu-item>
-        <el-menu-item index="/mailboxes"><el-icon><MessageBox /></el-icon>邮箱管理</el-menu-item>
-        <el-menu-item index="/tags"><el-icon><PriceTag /></el-icon>标签管理</el-menu-item>
+        <el-menu-item index="/dashboard" aria-label="运行概览"><el-icon><HomeFilled /></el-icon>Dashboard</el-menu-item>
+        <el-menu-item index="/mailboxes" aria-label="邮箱管理"><el-icon><MessageBox /></el-icon>邮箱管理</el-menu-item>
+        <el-menu-item index="/tags" aria-label="标签管理"><el-icon><PriceTag /></el-icon>标签管理</el-menu-item>
+        <el-menu-item index="/settings" aria-label="系统设置"><el-icon><Setting /></el-icon>系统设置</el-menu-item>
       </el-menu>
       <div class="side-footer">
         <el-button text class="logout-button" @click="logout"><el-icon><SwitchButton /></el-icon>退出登录</el-button>

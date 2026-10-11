@@ -7,6 +7,25 @@ export interface Mailbox {
   expires_at: string | null
   created_source: string
   tag_ids: number[]
+  email_count: number
+  unread_count: number
+  latest_email_at: string | null
+}
+
+export interface MailboxPage {
+  items: Mailbox[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface SystemSetting {
+  key: string
+  label: string
+  value: string
+  editable: boolean
+  requires_restart: boolean
 }
 
 export interface EmailItem {

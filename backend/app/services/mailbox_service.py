@@ -1,12 +1,12 @@
 import re
 
-from sqlalchemy import func, select
+from sqlalchemy import case, desc, func, nullslast, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config.logging import get_logger
 from app.config.settings import Settings
-from app.models import Mailbox, MailGenerationRecord, Tag
+from app.models import Email, Mailbox, MailGenerationRecord, Tag
 from app.utils.name_library import NameLibrary, NameLibraryError
 
 mailbox_logger = get_logger("mailbox")
@@ -63,8 +63,76 @@ def create_mailbox(
     return mailbox
 
 
-def list_mailboxes(db: Session) -> list[Mailbox]:
-    return list(db.scalars(select(Mailbox).order_by(Mailbox.id)))
+MAILBOX_SORTS = {
+    "created_desc", "created_asc", "latest_email_desc", "oldest_email_asc",
+    "email_asc", "email_desc", "unread_desc",
+}
+
+
+def list_mailboxes(
+    db: Session,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    tag_ids: list[int] | None = None,
+    tag_mode: str = "any",
+    untagged: bool = False,
+    sort_by: str = "created_desc",
+) -> tuple[list[Mailbox], int, dict[int, tuple[int, int, object | None]]]:
+    if sort_by not in MAILBOX_SORTS:
+        raise MailboxServiceError("不支持的邮箱排序方式")
+    if tag_mode not in {"any", "all"}:
+        raise MailboxServiceError("不支持的标签匹配方式")
+
+    query = select(Mailbox).options(selectinload(Mailbox.tags))
+    normalized_tags = list(dict.fromkeys(tag_ids or []))
+    if untagged:
+        query = query.where(~Mailbox.tags.any())
+    elif normalized_tags:
+        if tag_mode == "any":
+            query = query.where(Mailbox.tags.any(Tag.id.in_(normalized_tags)))
+        else:
+            for tag_id in normalized_tags:
+                query = query.where(Mailbox.tags.any(Tag.id == tag_id))
+
+    latest_email = select(func.max(Email.received_at)).where(Email.mailbox_id == Mailbox.id).scalar_subquery()
+    oldest_email = select(func.min(Email.received_at)).where(Email.mailbox_id == Mailbox.id).scalar_subquery()
+    unread_count = select(func.count(Email.id)).where(
+        Email.mailbox_id == Mailbox.id, Email.is_read.is_(False)
+    ).scalar_subquery()
+    if sort_by == "created_desc":
+        query = query.order_by(desc(Mailbox.created_at), desc(Mailbox.id))
+    elif sort_by == "created_asc":
+        query = query.order_by(Mailbox.created_at, Mailbox.id)
+    elif sort_by == "latest_email_desc":
+        query = query.order_by(nullslast(desc(latest_email)), desc(Mailbox.id))
+    elif sort_by == "oldest_email_asc":
+        query = query.order_by(nullslast(oldest_email), Mailbox.id)
+    elif sort_by == "email_asc":
+        query = query.order_by(Mailbox.email_address, Mailbox.id)
+    elif sort_by == "email_desc":
+        query = query.order_by(desc(Mailbox.email_address), desc(Mailbox.id))
+    else:
+        query = query.order_by(desc(unread_count), desc(Mailbox.id))
+
+    total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery())) or 0
+    rows = list(db.scalars(query.offset((page - 1) * page_size).limit(page_size)))
+    if not rows:
+        return [], total, {}
+    ids = [mailbox.id for mailbox in rows]
+    metric_rows = db.execute(
+        select(
+            Email.mailbox_id,
+            func.count(Email.id),
+            func.sum(case((Email.is_read.is_(False), 1), else_=0)),
+            func.max(Email.received_at),
+        ).where(Email.mailbox_id.in_(ids)).group_by(Email.mailbox_id)
+    )
+    metrics = {
+        mailbox_id: (int(email_count), int(unread or 0), latest)
+        for mailbox_id, email_count, unread, latest in metric_rows
+    }
+    return rows, total, metrics
 
 
 def get_mailbox(db: Session, mailbox_id: int) -> Mailbox:

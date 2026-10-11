@@ -6,6 +6,7 @@ import Login from './views/Login.vue'
 import MailboxDetail from './views/MailboxDetail.vue'
 import Mailboxes from './views/Mailboxes.vue'
 import Tags from './views/Tags.vue'
+import Settings from './views/Settings.vue'
 import { hasAccessToken } from './utils/email'
 
 const router = createRouter({
@@ -18,6 +19,7 @@ const router = createRouter({
     { path: '/mailboxes/:id', name: '邮箱详情', component: MailboxDetail, meta: { requiresAuth: true } },
     { path: '/emails/:id', name: '邮件详情', component: EmailDetail, meta: { requiresAuth: true } },
     { path: '/tags', name: '标签管理', component: Tags, meta: { requiresAuth: true } },
+    { path: '/settings', name: '系统设置', component: Settings, meta: { requiresAuth: true } },
   ],
 })
 

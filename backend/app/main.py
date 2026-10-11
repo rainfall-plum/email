@@ -16,6 +16,7 @@ from app.routers.auth import router as auth_router
 from app.routers.mailboxes import router as mailbox_router
 from app.routers.tags import router as tag_router
 from app.routers.emails import router as email_router
+from app.routers.settings import router as settings_router
 from app.services.admin_service import ensure_bootstrap_admin
 
 settings = get_settings()
@@ -48,6 +49,7 @@ app.include_router(auth_router)
 app.include_router(mailbox_router)
 app.include_router(tag_router)
 app.include_router(email_router)
+app.include_router(settings_router)
 
 
 @app.middleware("http")

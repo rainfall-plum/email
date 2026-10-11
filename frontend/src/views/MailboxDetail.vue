@@ -36,6 +36,12 @@ async function saveTags() {
   } finally { savingTags.value = false }
 }
 function openEmail(row: EmailItem) { router.push(`/emails/${row.id}`) }
+async function copyMailboxInfo(event: MouseEvent) {
+  event.stopPropagation()
+  if (!mailbox.value) return
+  try { await navigator.clipboard.writeText(mailbox.value.email_address); ElMessage.success('邮箱地址已复制') }
+  catch { ElMessage.error('复制失败，请检查浏览器权限') }
+}
 onMounted(load)
 </script>
 
@@ -44,7 +50,7 @@ onMounted(load)
     <div class="page-heading">
       <div>
         <el-button link class="back-button" @click="router.push('/mailboxes')">← 返回邮箱</el-button>
-        <h1>{{ mailbox?.email_address || '邮箱详情' }}</h1>
+        <div class="mailbox-title-row"><h1>{{ mailbox?.email_address || '邮箱详情' }}</h1><el-button v-if="mailbox" link type="primary" @click.stop="copyMailboxInfo">复制邮箱</el-button></div>
         <p>{{ mailbox?.display_name || '接收邮箱' }} · 共 {{ emails.length }} 封邮件</p>
       </div>
       <el-button :loading="loading" @click="load">刷新</el-button>
@@ -71,6 +77,7 @@ onMounted(load)
         <el-table-column prop="subject" label="主题" min-width="260" show-overflow-tooltip />
         <el-table-column label="验证码" width="130"><template #default="{ row }"><span v-if="row.verification_code" class="code-chip">{{ row.verification_code }}</span><span v-else class="muted">—</span></template></el-table-column>
         <el-table-column prop="received_at" label="接收时间" min-width="190" />
+        <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click.stop="openEmail(row)">打开</el-button></template></el-table-column>
       </el-table>
     </el-card>
   </div>

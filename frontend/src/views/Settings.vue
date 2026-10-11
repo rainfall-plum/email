@@ -1,0 +1,42 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+import { settingsApi } from '../api'
+import type { SystemSetting } from '../types'
+
+const settings = ref<SystemSetting[]>([])
+const drafts = ref<Record<string, string>>({})
+const loading = ref(false)
+const savingKey = ref<string | null>(null)
+
+async function load() {
+  loading.value = true
+  try {
+    settings.value = await settingsApi.list()
+    drafts.value = Object.fromEntries(settings.value.map((item) => [item.key, item.value]))
+  } catch { ElMessage.error('配置加载失败，请稍后重试') } finally { loading.value = false }
+}
+async function save(item: SystemSetting) {
+  if (!item.editable) return
+  try { await ElMessageBox.confirm(`确认保存“${item.label}”的新值吗？`, '保存配置', { type: 'warning' }) }
+  catch { return }
+  savingKey.value = item.key
+  try { const updated = await settingsApi.update(item.key, drafts.value[item.key] ?? ''); settings.value = settings.value.map((value) => value.key === item.key ? updated : value); ElMessage.success('配置已保存') }
+  catch (error: any) { ElMessage.error(error.response?.data?.detail || '配置保存失败') }
+  finally { savingKey.value = null }
+}
+onMounted(load)
+</script>
+
+<template>
+  <div class="page-heading"><div><h1>系统设置</h1><p>仅展示安全白名单配置；敏感密钥和服务器路径不会显示。</p></div><el-button :loading="loading" @click="load">刷新配置</el-button></div>
+  <el-card class="panel-card" shadow="never">
+    <el-table v-loading="loading" :data="settings" empty-text="暂无可用配置">
+      <el-table-column prop="label" label="配置项" min-width="220" />
+      <el-table-column label="当前值" min-width="240"><template #default="{ row }"><el-input v-if="row.editable" v-model="drafts[row.key]" :disabled="savingKey === row.key" /><span v-else class="setting-readonly">{{ row.value }}</span></template></el-table-column>
+      <el-table-column label="说明" min-width="180"><template #default="{ row }"><el-tag v-if="row.editable" type="success">可在线修改</el-tag><el-tag v-else type="info">只读</el-tag><span v-if="row.requires_restart" class="muted setting-note">修改后需重启</span></template></el-table-column>
+      <el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.editable" type="primary" size="small" :loading="savingKey === row.key" @click="save(row)">保存</el-button><span v-else class="muted">—</span></template></el-table-column>
+    </el-table>
+  </el-card>
+</template>

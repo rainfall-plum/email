@@ -11,6 +11,7 @@ from app.models import Email, Mailbox
 from app.services.code_service import extract_verification_code
 from app.services.attachment_service import save_relevant_attachments
 from app.services.parser_service import ParsedMail
+from app.services.system_settings_service import get_effective_max_emails
 
 mail_logger = get_logger("mail")
 
@@ -54,7 +55,7 @@ def _remove_stored_files(email: Email) -> None:
         Path(attachment.file_path).unlink(missing_ok=True)
 
 
-def _cleanup_mailbox(db: Session, mailbox: Mailbox, settings: Settings) -> None:
+def _cleanup_mailbox(db: Session, mailbox: Mailbox, settings: Settings, max_emails: int) -> None:
     emails = list(
         db.scalars(
             select(Email)
@@ -62,7 +63,7 @@ def _cleanup_mailbox(db: Session, mailbox: Mailbox, settings: Settings) -> None:
             .order_by(Email.received_at.desc(), Email.id.desc())
         )
     )
-    for old_email in emails[settings.max_emails_per_mailbox :]:
+    for old_email in emails[max_emails:]:
         _remove_stored_files(old_email)
         db.delete(old_email)
         mail_logger.info(
@@ -103,7 +104,7 @@ def store_received_mail(
     try:
         db.flush()
         saved_attachments = save_relevant_attachments(db, settings, email, parsed_mail.attachments)
-        _cleanup_mailbox(db, mailbox, settings)
+        _cleanup_mailbox(db, mailbox, settings, get_effective_max_emails(db, settings))
         db.commit()
         db.refresh(email)
     except Exception as exc:

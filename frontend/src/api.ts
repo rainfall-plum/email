@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import type { Attachment, EmailItem, Mailbox, Tag } from './types'
+import type { Attachment, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -36,7 +36,20 @@ export const authApi = {
 }
 
 export const mailboxApi = {
-  async list() { return (await api.get<Mailbox[]>('/mailboxes')).data },
+  async list(params: {
+    page?: number; page_size?: number; tag_ids?: number[]; tag_mode?: 'any' | 'all';
+    untagged?: boolean; sort_by?: string
+  } = {}) {
+    const query = new URLSearchParams()
+    if (params.page) query.set('page', String(params.page))
+    if (params.page_size) query.set('page_size', String(params.page_size))
+    params.tag_ids?.forEach((id) => query.append('tag_ids', String(id)))
+    if (params.tag_mode) query.set('tag_mode', params.tag_mode)
+    if (params.untagged) query.set('untagged', 'true')
+    if (params.sort_by) query.set('sort_by', params.sort_by)
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    return (await api.get<MailboxPage>(`/mailboxes${suffix}`)).data
+  },
   async get(id: number) { return (await api.get<Mailbox>(`/mailboxes/${id}`)).data },
   async create(payload: { local_part: string; display_name?: string; tag_ids?: number[] }) {
     return (await api.post<Mailbox>('/mailboxes', payload)).data
@@ -61,6 +74,13 @@ export const tagApi = {
   async create(name: string) { return (await api.post<Tag>('/tags', { name })).data },
   async update(id: number, name: string) { return (await api.put<Tag>(`/tags/${id}`, { name })).data },
   async remove(id: number) { await api.delete(`/tags/${id}`) },
+}
+
+export const settingsApi = {
+  async list() { return (await api.get<SystemSetting[]>('/settings')).data },
+  async update(key: string, value: string) {
+    return (await api.put<SystemSetting>(`/settings/${encodeURIComponent(key)}`, { value })).data
+  },
 }
 
 export type { Attachment }

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import math
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.config.logging import get_logger
@@ -10,6 +12,7 @@ from app.schemas.mailbox import (
     BatchMailboxCreateRequest,
     BatchMailboxCreateResponse,
     MailboxCreateRequest,
+    MailboxPageResponse,
     MailboxResponse,
     MailboxUpdateRequest,
 )
@@ -28,7 +31,8 @@ router = APIRouter(prefix="/api/mailboxes", tags=["mailboxes"])
 route_logger = get_logger("mailbox_api")
 
 
-def _response(mailbox) -> MailboxResponse:
+def _response(mailbox, metrics: tuple[int, int, object | None] | None = None) -> MailboxResponse:
+    email_count, unread_count, latest_email_at = metrics or (0, 0, None)
     return MailboxResponse(
         id=mailbox.id,
         email_address=mailbox.email_address,
@@ -38,14 +42,43 @@ def _response(mailbox) -> MailboxResponse:
         expires_at=mailbox.expires_at,
         created_source=mailbox.created_source,
         tag_ids=[tag.id for tag in mailbox.tags],
+        email_count=email_count,
+        unread_count=unread_count,
+        latest_email_at=latest_email_at,
     )
 
 
-@router.get("", response_model=list[MailboxResponse])
+@router.get("", response_model=MailboxPageResponse)
 def get_mailboxes(
-    _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)
-) -> list[MailboxResponse]:
-    return [_response(mailbox) for mailbox in list_mailboxes(db)]
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    tag_ids: list[int] | None = Query(default=None),
+    tag_mode: str = Query("any"),
+    untagged: bool = Query(False),
+    sort_by: str = Query("created_desc"),
+    _: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> MailboxPageResponse:
+    try:
+        mailboxes, total, metrics = list_mailboxes(
+            db,
+            page=page,
+            page_size=page_size,
+            tag_ids=tag_ids,
+            tag_mode=tag_mode,
+            untagged=untagged,
+            sort_by=sort_by,
+        )
+    except MailboxServiceError as exc:
+        route_logger.warning("Mailbox list rejected reason=%s", exc)
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    return MailboxPageResponse(
+        items=[_response(mailbox, metrics.get(mailbox.id)) for mailbox in mailboxes],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=math.ceil(total / page_size) if total else 0,
+    )
 
 
 @router.get("/{mailbox_id}", response_model=MailboxResponse)

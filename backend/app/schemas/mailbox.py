@@ -28,6 +28,17 @@ class MailboxResponse(BaseModel):
     expires_at: datetime | None
     created_source: str
     tag_ids: list[int] = Field(default_factory=list)
+    email_count: int = 0
+    unread_count: int = 0
+    latest_email_at: datetime | None = None
+
+
+class MailboxPageResponse(BaseModel):
+    items: list[MailboxResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
 
 
 class BatchMailboxCreateRequest(BaseModel):

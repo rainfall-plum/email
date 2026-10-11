@@ -77,7 +77,10 @@ def test_mailbox_and_tag_api_requires_admin_and_supports_crud(tmp_path, monkeypa
             )
             assert duplicate.status_code == 422
             assert duplicate.json() == {"detail": "请求参数无效"}
-            assert client.get("/api/mailboxes", headers=headers).json()[0]["id"] == mailbox_id
+            listing = client.get("/api/mailboxes", headers=headers).json()
+            assert listing["items"][0]["id"] == mailbox_id
+            assert listing["total"] == 1
+            assert listing["page"] == 1
 
             assert client.delete(f"/api/mailboxes/{mailbox_id}", headers=headers).status_code == 204
             assert client.delete(f"/api/tags/{tag_id}", headers=headers).status_code == 204

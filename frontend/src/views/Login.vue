@@ -32,7 +32,7 @@ async function submit() {
       <el-form @submit.prevent="submit" label-position="top">
         <el-form-item label="管理员用户名"><el-input v-model="form.username" autocomplete="username" placeholder="输入管理员用户名" /></el-form-item>
         <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password autocomplete="current-password" placeholder="输入密码" @keyup.enter="submit" /></el-form-item>
-        <el-button type="primary" class="w-full" :loading="loading" native-type="submit" @click="submit">登录后台</el-button>
+        <el-button type="primary" class="w-full" :loading="loading" native-type="submit">登录后台</el-button>
       </el-form>
     </el-card>
   </div>
