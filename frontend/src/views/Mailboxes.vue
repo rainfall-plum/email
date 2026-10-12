@@ -3,8 +3,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 
-import { mailboxApi, tagApi } from '../api'
+import { getApiErrorMessage, mailboxApi, tagApi } from '../api'
 import type { Mailbox, Tag } from '../types'
+import { formatDate } from '../utils/email'
 
 const router = useRouter()
 const mailboxes = ref<Mailbox[]>([])
@@ -24,24 +25,27 @@ const total = ref(0)
 const filters = reactive({ tag_ids: [] as number[], tag_mode: 'any' as 'any' | 'all', untagged: false, sort_by: 'created_desc' })
 
 const dialogWidth = 'min(500px, calc(100vw - 32px))'
+let loadSequence = 0
 
 async function load() {
+  const sequence = ++loadSequence
   loading.value = true
   try {
     const [result, tagData] = await Promise.all([
       mailboxApi.list({ page: page.value, page_size: pageSize.value, ...filters }),
       tagApi.list(),
     ])
+    if (sequence !== loadSequence) return
+    if (result.pages > 0 && page.value > result.pages) { page.value = result.pages; void load(); return }
     mailboxes.value = result.items
     total.value = result.total
     tags.value = tagData
-  } catch { ElMessage.error('邮箱数据加载失败，请稍后重试') } finally { loading.value = false }
+  } catch (error) { if (sequence === loadSequence) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
 }
 function resetPageAndLoad() { page.value = 1; void load() }
 function onTagsChange() { if (filters.tag_ids.length) filters.untagged = false; resetPageAndLoad() }
 function onUntaggedChange() { if (filters.untagged) filters.tag_ids = []; resetPageAndLoad() }
 function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.name || `#${id}` }
-function formatDate(value: string | null) { return value ? new Date(value).toLocaleString('zh-CN') : '暂无邮件' }
 function openMailbox(id: number) { router.push(`/mailboxes/${id}`) }
 
 async function create() {
@@ -52,7 +56,7 @@ async function create() {
     createVisible.value = false
     form.local_part = ''; form.display_name = ''; form.tag_ids = []
     await load()
-  } catch (error: any) { ElMessage.error(error.response?.data?.detail || '邮箱创建失败') }
+  } catch (error) { ElMessage.error(getApiErrorMessage(error, '邮箱创建失败')) }
   finally { createLoading.value = false }
 }
 async function batch() {
@@ -63,7 +67,7 @@ async function batch() {
     batchVisible.value = false; batchTagIds.value = []
     page.value = 1
     await load()
-  } catch (error: any) { ElMessage.error(error.response?.data?.detail || '批量生成失败') }
+  } catch (error) { ElMessage.error(getApiErrorMessage(error, '批量生成失败')) }
   finally { batchLoading.value = false }
 }
 async function remove(mailbox: Mailbox) {
@@ -71,7 +75,7 @@ async function remove(mailbox: Mailbox) {
   catch { return }
   deleteLoadingId.value = mailbox.id
   try { await mailboxApi.remove(mailbox.id); ElMessage.success('邮箱已删除'); await load() }
-  catch { ElMessage.error('删除失败，请稍后重试') }
+  catch (error) { ElMessage.error(getApiErrorMessage(error, '删除失败，请稍后重试')) }
   finally { deleteLoadingId.value = null }
 }
 function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; void load() }

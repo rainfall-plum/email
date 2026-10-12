@@ -1,11 +1,28 @@
 export function sanitizeHtmlForPreview(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    .replace(/\son\w+\s*=\s*(["']).*?\1/gi, '')
-    .replace(/\s(?:href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, '')
+  if (typeof DOMParser === 'undefined') return ''
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  const blocked = 'script,iframe,object,embed,frame,frameset,base,meta,link,form'
+  document.querySelectorAll(blocked).forEach((element) => element.remove())
+  document.querySelectorAll('*').forEach((element) => {
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase()
+      const value = attribute.value.trim().toLowerCase()
+      if (name.startsWith('on') || name === 'srcdoc' || name === 'style' && /(url\s*\(|expression\s*\(|javascript\s*:)/i.test(value)) {
+        element.removeAttribute(attribute.name)
+      } else if (['href', 'src', 'xlink:href', 'poster', 'background'].includes(name)) {
+        element.removeAttribute(attribute.name)
+      }
+    }
+  })
+  return document.body.innerHTML
 }
 
 export function hasAccessToken(): boolean {
   return Boolean(localStorage.getItem('email_access_token'))
+}
+
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return '暂无'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '时间未知' : date.toLocaleString('zh-CN')
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Moon, Sunny } from '@element-plus/icons-vue'
+import { Monitor, Moon, Sunny, Tickets } from '@element-plus/icons-vue'
 
 import { useTheme } from '../utils/theme'
 
@@ -8,7 +8,7 @@ const { theme, setTheme, options } = useTheme()
 
 <template>
   <div class="theme-switcher" aria-label="主题切换">
-    <el-icon class="theme-switcher-icon"><Moon v-if="theme === 'dark'" /><Sunny v-else /></el-icon>
+    <el-icon class="theme-switcher-icon"><Moon v-if="theme === 'dark'" /><Tickets v-else-if="theme === 'paper'" /><Monitor v-else-if="theme === 'system'" /><Sunny v-else /></el-icon>
     <el-select
       :model-value="theme"
       size="small"

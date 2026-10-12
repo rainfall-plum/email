@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import type { Attachment, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
+import type { Attachment, DashboardStats, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -16,10 +16,28 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) localStorage.removeItem('email_access_token')
+    if (error.response?.status === 401) {
+      localStorage.removeItem('email_access_token')
+      window.dispatchEvent(new CustomEvent('email-auth-expired'))
+    }
     return Promise.reject(error)
   },
 )
+
+const SAFE_BUSINESS_ERRORS = new Set([
+  '邮箱前缀已存在', '邮箱前缀只允许小写字母和数字', '存在无效标签', '标签名称不能为空',
+  '标签名称已存在', '邮箱不存在', '邮件不存在', '附件不存在', '附件文件不存在',
+  '不支持的邮箱排序方式', '不支持的标签匹配方式',
+])
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  const response = (error as { response?: { status?: number; data?: { detail?: unknown } } })?.response
+  const detail = response?.data?.detail
+  if (response?.status && response.status < 500 && typeof detail === 'string' && SAFE_BUSINESS_ERRORS.has(detail)) {
+    return detail
+  }
+  return fallback
+}
 
 export const authApi = {
   async login(username: string, password: string) {
@@ -67,6 +85,10 @@ export const emailApi = {
   async downloadAttachment(id: number) {
     return (await api.get<Blob>(`/attachments/${id}/download`, { responseType: 'blob' })).data
   },
+}
+
+export const dashboardApi = {
+  async stats() { return (await api.get<DashboardStats>('/dashboard/stats')).data },
 }
 
 export const tagApi = {

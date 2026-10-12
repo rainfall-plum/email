@@ -7,6 +7,7 @@ import MailboxDetail from './views/MailboxDetail.vue'
 import Mailboxes from './views/Mailboxes.vue'
 import Tags from './views/Tags.vue'
 import Settings from './views/Settings.vue'
+import NotFound from './views/NotFound.vue'
 import { hasAccessToken } from './utils/email'
 
 const router = createRouter({
@@ -20,6 +21,7 @@ const router = createRouter({
     { path: '/emails/:id', name: '邮件详情', component: EmailDetail, meta: { requiresAuth: true } },
     { path: '/tags', name: '标签管理', component: Tags, meta: { requiresAuth: true } },
     { path: '/settings', name: '系统设置', component: Settings, meta: { requiresAuth: true } },
+    { path: '/:pathMatch(.*)*', name: '页面不存在', component: NotFound, meta: { requiresAuth: true } },
   ],
 })
 

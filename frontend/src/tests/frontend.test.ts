@@ -13,6 +13,12 @@ describe('frontend safety helpers', () => {
     expect(result).toBe('<p>code</p><a>x</a>')
   })
 
+  it('removes embedded documents, external resources, and unquoted handlers', () => {
+    const result = sanitizeHtmlForPreview('<div onclick=alert(1) style="background:url(https://x)">x</div><img src="https://x"><a href="https://x">safe</a>')
+    expect(result).toBe('<div>x</div><img><a>safe</a>')
+    expect(sanitizeHtmlForPreview('<iframe src="x"></iframe><object data="x"></object>')).toBe('')
+  })
+
   it('detects the local JWT session token', () => {
     expect(hasAccessToken()).toBe(false)
     localStorage.setItem('email_access_token', 'test-token')

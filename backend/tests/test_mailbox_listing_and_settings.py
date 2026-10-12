@@ -94,3 +94,41 @@ def test_system_settings_expose_safe_values_and_update_allowlist(tmp_path, monke
             assert client.put("/api/settings/allowed_domain", headers=headers, json={"value": "bad.test"}).status_code == 400
     finally:
         app.dependency_overrides.clear()
+
+
+def test_dashboard_stats_are_aggregated(tmp_path, monkeypatch):
+    monkeypatch.setenv("EMAIL_JWT_SECRET_KEY", "dashboard-test-secret-32-bytes")
+    engine = create_engine(f"sqlite:///{(tmp_path / 'dashboard.sqlite').as_posix()}")
+    session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    from app.main import app
+    from app.models import AdminUser, Base, Email, Mailbox, Tag
+    from app.routers.auth import get_db
+    from app.utils.security import hash_password
+
+    Base.metadata.create_all(engine)
+    db = session_factory()
+    mailbox = Mailbox(email_address="stats@example.test", local_part="stats")
+    db.add_all([AdminUser(username="admin", password_hash=hash_password("pw")), Tag(name="ops"), mailbox])
+    db.flush()
+    db.add_all([
+        Email(mailbox_id=mailbox.id, sender="a@example.com", receiver=mailbox.email_address, is_read=False, received_at=datetime.now(timezone.utc)),
+        Email(mailbox_id=mailbox.id, sender="b@example.com", receiver=mailbox.email_address, is_read=True, received_at=datetime.now(timezone.utc)),
+    ])
+    db.commit(); db.close()
+
+    def override_get_db():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            token = client.post("/api/login", json={"username": "admin", "password": "pw"}).json()["access_token"]
+            result = client.get("/api/dashboard/stats", headers={"Authorization": f"Bearer {token}"})
+            assert result.status_code == 200
+            assert result.json() == {"mailbox_count": 1, "email_count": 2, "unread_email_count": 1, "tag_count": 1}
+    finally:
+        app.dependency_overrides.clear()

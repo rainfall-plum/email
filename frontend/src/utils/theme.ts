@@ -19,7 +19,6 @@ function readTheme(): ThemeMode {
     ? value
     : 'system'
 }
-
 function applyTheme(value: ThemeMode) {
   document.documentElement.dataset.theme = value
 }
@@ -41,3 +40,5 @@ export function useTheme() {
 
   return { theme, setTheme, options: THEME_OPTIONS }
 }
+
+// Theme utilities intentionally share one persisted mode across every page.

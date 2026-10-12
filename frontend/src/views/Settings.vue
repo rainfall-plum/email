@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { settingsApi } from '../api'
+import { getApiErrorMessage, settingsApi } from '../api'
 import type { SystemSetting } from '../types'
 
 const settings = ref<SystemSetting[]>([])
@@ -23,7 +23,7 @@ async function save(item: SystemSetting) {
   catch { return }
   savingKey.value = item.key
   try { const updated = await settingsApi.update(item.key, drafts.value[item.key] ?? ''); settings.value = settings.value.map((value) => value.key === item.key ? updated : value); ElMessage.success('配置已保存') }
-  catch (error: any) { ElMessage.error(error.response?.data?.detail || '配置保存失败') }
+  catch (error) { ElMessage.error(getApiErrorMessage(error, '配置保存失败')) }
   finally { savingKey.value = null }
 }
 onMounted(load)
@@ -34,7 +34,7 @@ onMounted(load)
   <el-card class="panel-card" shadow="never">
     <el-table v-loading="loading" :data="settings" empty-text="暂无可用配置">
       <el-table-column prop="label" label="配置项" min-width="220" />
-      <el-table-column label="当前值" min-width="240"><template #default="{ row }"><el-input v-if="row.editable" v-model="drafts[row.key]" :disabled="savingKey === row.key" /><span v-else class="setting-readonly">{{ row.value }}</span></template></el-table-column>
+      <el-table-column label="当前值" min-width="240"><template #default="{ row }"><el-input-number v-if="row.editable && row.key === 'max_emails_per_mailbox'" :model-value="Number(drafts[row.key])" :min="1" :max="100" :disabled="savingKey === row.key" @update:model-value="(value: number | undefined) => drafts[row.key] = String(value ?? '')" /><el-input v-else-if="row.editable" v-model="drafts[row.key]" :disabled="savingKey === row.key" /><span v-else class="setting-readonly">{{ row.value }}</span></template></el-table-column>
       <el-table-column label="说明" min-width="180"><template #default="{ row }"><el-tag v-if="row.editable" type="success">可在线修改</el-tag><el-tag v-else type="info">只读</el-tag><span v-if="row.requires_restart" class="muted setting-note">修改后需重启</span></template></el-table-column>
       <el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.editable" type="primary" size="small" :loading="savingKey === row.key" @click="save(row)">保存</el-button><span v-else class="muted">—</span></template></el-table-column>
     </el-table>

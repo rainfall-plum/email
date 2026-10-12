@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { mailboxApi, tagApi } from '../api'
+import { getApiErrorMessage, mailboxApi, tagApi } from '../api'
 import type { EmailItem, Mailbox, Tag } from '../types'
+import { formatDate } from '../utils/email'
 
 const route = useRoute(); const router = useRouter()
 const emails = ref<EmailItem[]>([]); const loading = ref(false)
@@ -12,9 +13,11 @@ const mailbox = ref<Mailbox | null>(null)
 const tags = ref<Tag[]>([])
 const selectedTagIds = ref<number[]>([])
 const savingTags = ref(false)
+const loadError = ref(false)
 const mailboxId = computed(() => Number(route.params.id))
 async function load() {
   loading.value = true
+  loadError.value = false
   try {
     const [mailboxData, emailData, tagData] = await Promise.all([
       mailboxApi.get(mailboxId.value), mailboxApi.emails(mailboxId.value), tagApi.list(),
@@ -23,7 +26,7 @@ async function load() {
     selectedTagIds.value = [...mailboxData.tag_ids]
     emails.value = emailData
     tags.value = tagData
-  } catch { ElMessage.error('邮箱数据加载失败') } finally { loading.value = false }
+  } catch (error) { loadError.value = true; ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败')) } finally { loading.value = false }
 }
 async function saveTags() {
   if (!mailbox.value) return
@@ -31,8 +34,8 @@ async function saveTags() {
   try {
     mailbox.value = await mailboxApi.update(mailbox.value.id, { tag_ids: selectedTagIds.value })
     ElMessage.success('标签已保存')
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '标签保存失败')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '标签保存失败'))
   } finally { savingTags.value = false }
 }
 function openEmail(row: EmailItem) { router.push(`/emails/${row.id}`) }
@@ -42,11 +45,13 @@ async function copyMailboxInfo(event: MouseEvent) {
   try { await navigator.clipboard.writeText(mailbox.value.email_address); ElMessage.success('邮箱地址已复制') }
   catch { ElMessage.error('复制失败，请检查浏览器权限') }
 }
+watch(() => route.params.id, load)
 onMounted(load)
 </script>
 
 <template>
   <div v-loading="loading">
+    <el-result v-if="loadError" icon="error" title="邮箱详情暂时无法加载" sub-title="请检查网络后重试"><template #extra><el-button type="primary" :loading="loading" @click="load">重新加载</el-button><el-button @click="router.push('/mailboxes')">返回邮箱</el-button></template></el-result>
     <div class="page-heading">
       <div>
         <el-button link class="back-button" @click="router.push('/mailboxes')">← 返回邮箱</el-button>
@@ -71,13 +76,13 @@ onMounted(load)
     </el-card>
     <el-card class="panel-card mail-list-card" shadow="never">
       <template #header><div class="card-header-row"><strong>邮件列表</strong><span class="muted">点击一行查看邮件详情</span></div></template>
-      <el-table v-loading="loading" :data="emails" stripe empty-text="暂无邮件" @row-click="openEmail">
+        <el-table v-if="!loadError" v-loading="loading" :data="emails" stripe empty-text="暂无邮件" @row-click="openEmail">
         <el-table-column label="状态" width="85"><template #default="{ row }"><el-tag :type="row.is_read ? 'info' : 'warning'">{{ row.is_read ? '已读' : '未读' }}</el-tag></template></el-table-column>
         <el-table-column prop="sender" label="发件人" min-width="220" show-overflow-tooltip />
         <el-table-column prop="subject" label="主题" min-width="260" show-overflow-tooltip />
         <el-table-column label="验证码" width="130"><template #default="{ row }"><span v-if="row.verification_code" class="code-chip">{{ row.verification_code }}</span><span v-else class="muted">—</span></template></el-table-column>
-        <el-table-column prop="received_at" label="接收时间" min-width="190" />
-        <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click.stop="openEmail(row)">打开</el-button></template></el-table-column>
+        <el-table-column label="接收时间" min-width="190"><template #default="{ row }">{{ formatDate(row.received_at) }}</template></el-table-column>
+        <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" :aria-label="`打开来自 ${row.sender} 的邮件`" @click.stop="openEmail(row)">打开</el-button></template></el-table-column>
       </el-table>
     </el-card>
   </div>

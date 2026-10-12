@@ -20,6 +20,13 @@ export interface MailboxPage {
   pages: number
 }
 
+export interface DashboardStats {
+  mailbox_count: number
+  email_count: number
+  unread_email_count: number
+  tag_count: number
+}
+
 export interface SystemSetting {
   key: string
   label: string
