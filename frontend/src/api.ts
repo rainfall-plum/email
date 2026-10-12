@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearSession, establishSession, isAuthFailure } from './utils/session'
 import type { OutboundDraft, OutboundEmail } from './types'
 
 import type { Attachment, DashboardStats, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
@@ -17,10 +18,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('email_access_token')
-      window.dispatchEvent(new CustomEvent('email-auth-expired'))
-    }
+    const sentAuthorization = error.config?.headers?.Authorization
+    const currentToken = localStorage.getItem('email_access_token')
+    if (error.config?.url !== '/login' && isAuthFailure(error) && (!sentAuthorization || !currentToken || sentAuthorization === `Bearer ${currentToken}`)) clearSession()
     return Promise.reject(error)
   },
 )
@@ -32,10 +32,21 @@ const SAFE_BUSINESS_ERRORS = new Set([
   '发件邮箱不存在或不属于系统域名', '提交标识已使用，请刷新后重新创建',
   '仅可重试未满5次的失败邮件', '发送记录不存在',
 ])
+const SAFE_CODES: Record<string, string> = {
+  CURRENT_PASSWORD_INCORRECT: '当前密码不正确', NO_CREDENTIAL_CHANGES: '请至少修改一项管理员信息',
+  CURRENT_PASSWORD_INVALID: '当前密码不正确', INVALID_CURRENT_PASSWORD: '当前密码不正确',
+  ADMIN_USERNAME_EXISTS: '管理员用户名已存在', USERNAME_ALREADY_EXISTS: '管理员用户名已存在',
+  INVALID_USERNAME: '用户名须为 3–64 位，以字母开头，仅含字母、数字和下划线',
+  INVALID_PASSWORD: '新密码须为 12–128 个字符', NO_CHANGES: '请至少修改一项管理员信息',
+  invalid_json: 'JSON 解析失败，请检查文件格式和 UTF-8 编码', unsupported_structure: 'JSON 必须是仅包含 usernames 数组的对象',
+  file_too_large: '文件不能超过 1 MiB', too_many_usernames: '最多允许 1000 个用户名',
+  invalid_extension: '请选择 .json 文件',
+}
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   const response = (error as { response?: { status?: number; data?: { detail?: unknown } } })?.response
   const detail = response?.data?.detail
+  if (detail && typeof detail === 'object' && 'code' in detail && typeof detail.code === 'string' && SAFE_CODES[detail.code]) return SAFE_CODES[detail.code]
   if (response?.status && response.status < 500 && typeof detail === 'string' && SAFE_BUSINESS_ERRORS.has(detail)) {
     return detail
   }
@@ -45,18 +56,35 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 export const authApi = {
   async login(username: string, password: string) {
     const response = await api.post<{ access_token: string }>('/login', { username, password })
-    localStorage.setItem('email_access_token', response.data.access_token)
+    establishSession(response.data.access_token)
     return response.data
   },
   async me() {
     return (await api.get<{ id: number; username: string }>('/me')).data
   },
   logout() {
-    localStorage.removeItem('email_access_token')
+    clearSession('logout')
   },
 }
 
+export const adminApi = {
+  async profile() { return (await api.get<{ id: number; username: string }>('/admin/profile')).data },
+  async credentials(payload: { current_password: string; new_username?: string; new_password?: string; confirm_new_password?: string }) {
+    return (await api.patch<{ code: string }>('/admin/credentials', payload)).data
+  },
+}
+export interface ImportResult {
+  total: number; success_count: number; duplicate_count: number; invalid_count: number; existing_count: number
+  already_available_count?: number; already_used_count?: number
+  created_mailboxes: Array<{ username: string; email: string; mailbox_id: number }>
+  rejected_usernames: Array<{ username: unknown; reason: string; message: string }>
+}
+
 export const mailboxApi = {
+  async importUsernames(file: File) {
+    const body = new FormData(); body.append('file', file)
+    return (await api.post<ImportResult>('/mailboxes/import-usernames', body, { timeout: 60000 })).data
+  },
   async list(params: {
     page?: number; page_size?: number; tag_ids?: number[]; tag_mode?: 'any' | 'all';
     untagged?: boolean; sort_by?: string

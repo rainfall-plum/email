@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Message, MessageBox, CircleCheck, Warning } from '@element-plus/icons-vue'
@@ -24,7 +25,7 @@ async function load() {
     environment.value = settingData.find((item) => item.key === 'environment')?.value || '未知'
     retentionLimit.value = settingData.find((item) => item.key === 'max_emails_per_mailbox')?.value || '10'
     mailboxes.value = mailboxCount
-  } catch { ElMessage.error('统计数据加载失败') } finally { loading.value = false }
+  } catch (error) { if (!isAuthFailure(error)) ElMessage.error('统计数据加载失败') } finally { loading.value = false }
 }
 onMounted(load)
 </script>

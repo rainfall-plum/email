@@ -136,3 +136,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
 @media (max-width: 640px) { .main-menu .menu-label, .logout-button .menu-label { display: none; } .dashboard-status .el-descriptions__table, .dashboard-status .el-descriptions__body { width: 100%; } .dashboard-status .el-descriptions__cell { display: block; width: 100%; } }
 @media (max-width: 640px) { .table-footer { align-items: flex-start; flex-direction: column; } .table-footer .el-pagination { max-width: 100%; overflow-x: auto; } .page-actions { width: 100%; } .page-actions .el-button { flex: 1; } .inline-form .el-form-item:first-child { flex: 1; min-width: 180px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+.account-card { margin-bottom: 24px; }
+.account-form { max-width: 620px; }
+.account-form .el-form-item__content { gap: 6px; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.password-fields { padding-top: 8px; }
+.login-reason { margin-bottom: 20px; }
+.json-example { padding: 18px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 10px; color: var(--text); overflow-x: auto; }
+.import-file-row { display: flex; flex-direction: column; gap: 10px; margin: 22px 0; }
+.import-file-row input { max-width: 100%; color: var(--text); }
+.import-result { margin-top: 24px; }
+.import-stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.import-stats span { background: var(--surface-soft); padding: 10px; border-radius: 6px; }
+.rejected-name { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .account-actions .el-button { flex: 1; margin-left: 0; } .el-dialog__footer { display: flex; flex-wrap: wrap; gap: 8px; } .el-dialog__footer .el-button { margin-left: 0; } .account-card .el-card__body { padding: 16px; } }

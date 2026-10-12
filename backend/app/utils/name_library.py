@@ -2,10 +2,12 @@ import json
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from threading import RLock
 
 from app.config.logging import get_logger
 
 name_logger = get_logger("names")
+NAME_LIBRARY_LOCK = RLock()
 
 
 class NameLibraryError(Exception):
@@ -20,18 +22,19 @@ class NameLibrary:
     def _path(self, state: str, kind: str) -> Path:
         return self.names_dir / f"{state}_{kind}_names.json"
 
-    def _read(self, state: str, kind: str) -> list[str]:
+    def _read(self, state: str, kind: str, *, create_missing: bool = True) -> list[str]:
         path = self._path(state, kind)
         if not path.exists():
-            path.write_text("[]\n", encoding="utf-8")
+            if create_missing:
+                path.write_text("[]\n", encoding="utf-8")
             return []
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            name_logger.error("Name library read failed path=%s", path, exc_info=True)
+            name_logger.error("Name library read failed type=%s", type(exc).__name__)
             raise NameLibraryError("名字库读取失败") from exc
         if not isinstance(data, list) or not all(isinstance(item, str) for item in data):
-            name_logger.error("Name library format invalid path=%s", path)
+            name_logger.error("Name library format invalid")
             raise NameLibraryError("名字库格式无效")
         return data
 
@@ -46,7 +49,7 @@ class NameLibrary:
         except OSError as exc:
             if "temp_path" in locals() and temp_path.exists():
                 temp_path.unlink(missing_ok=True)
-            name_logger.error("Name library write failed path=%s", path, exc_info=True)
+            name_logger.error("Name library write failed type=%s", type(exc).__name__)
             raise NameLibraryError("名字库保存失败") from exc
 
     def take_pair(self) -> tuple[str, str]:
@@ -72,18 +75,38 @@ class NameLibrary:
         expected = list(zip(first_names[:count], last_names[:count], strict=True))
         if expected != pairs:
             raise NameLibraryError("名字库已发生变化，请重试")
-        self._write("available", "first", first_names[count:])
-        self._write("available", "last", last_names[count:])
         used_first = self._read("used", "first")
         used_last = self._read("used", "last")
+        snapshot = self.snapshot()
         for first, last in pairs:
             if first not in used_first:
                 used_first.append(first)
             if last not in used_last:
                 used_last.append(last)
-        self._write("used", "first", used_first)
-        self._write("used", "last", used_last)
+        try:
+            self._write("available", "first", first_names[count:])
+            self._write("available", "last", last_names[count:])
+            self._write("used", "first", used_first)
+            self._write("used", "last", used_last)
+        except Exception:
+            self.restore(snapshot)
+            raise
         name_logger.debug("Name pairs consumed count=%s", count)
+
+    def snapshot(self) -> dict[tuple[str, str], list[str]]:
+        return {(state, kind): self._read(state, kind)
+                for state in ("available", "used") for kind in ("first", "last")}
+
+    def restore(self, snapshot: dict[tuple[str, str], list[str]]) -> None:
+        failed = False
+        for (state, kind), values in snapshot.items():
+            try:
+                self._write(state, kind, values)
+            except Exception as exc:
+                failed = True
+                name_logger.error("Name pool recovery failed type=%s", type(exc).__name__)
+        if failed:
+            raise NameLibraryError("名字库恢复失败，请联系管理员")
 
     def _append_used(self, kind: str, value: str) -> None:
         used = self._read("used", kind)

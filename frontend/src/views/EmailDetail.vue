@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -14,7 +15,7 @@ const safeHtml = computed(() => {
   if (!email.value?.body_html) return ''
   return sanitizeHtmlForPreview(email.value.body_html)
 })
-async function load() { loading.value = true; loadError.value = false; try { email.value = await emailApi.get(Number(route.params.id)) } catch (error) { email.value = null; loadError.value = true; ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } finally { loading.value = false } }
+async function load() { loading.value = true; loadError.value = false; try { email.value = await emailApi.get(Number(route.params.id)) } catch (error) { email.value = null; loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } finally { loading.value = false } }
 function formatSize(size: number) { return size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` }
 async function downloadAttachment(id: number, filename: string) {
   downloadingId.value = id
@@ -23,7 +24,7 @@ async function downloadAttachment(id: number, filename: string) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url)
-  } catch { ElMessage.error('附件下载失败') } finally { downloadingId.value = null }
+  } catch (error) { if (!isAuthFailure(error)) ElMessage.error('附件下载失败') } finally { downloadingId.value = null }
 }
 function goBack() { router.push(email.value ? `/mailboxes/${email.value.mailbox_id}` : '/mailboxes') }
 watch(() => route.params.id, load)

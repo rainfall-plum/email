@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -34,7 +35,7 @@ async function retry(row: OutboundEmail) {
     try { await ElMessageBox.confirm('确认重新尝试发送这封失败邮件？尝试总次数不会重置，最多5次。', '重试确认', { confirmButtonText: '确认重试', cancelButtonText: '取消', type: 'warning' }) } catch { return }
     await outboundApi.retry(row.id); ElMessage.success('已加入发送队列'); await load()
     if (dialog.value && detailId.value === row.id) await details(row.id)
-  } catch (e) { ElMessage.error(getApiErrorMessage(e, '重试失败，请刷新记录后重试')) } finally { retrying.value = null }
+  } catch (e) { if (!isAuthFailure(e)) ElMessage.error(getApiErrorMessage(e, '重试失败，请刷新记录后重试')) } finally { retrying.value = null }
 }
 onMounted(() => { load(); timer = setInterval(() => { if (!loading.value && !document.hidden && !dialog.value) load() }, 5000) })
 onBeforeUnmount(() => { generation++; clearInterval(timer) })

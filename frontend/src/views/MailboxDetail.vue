@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -26,16 +27,16 @@ async function load() {
     selectedTagIds.value = [...mailboxData.tag_ids]
     emails.value = emailData
     tags.value = tagData
-  } catch (error) { loadError.value = true; ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败')) } finally { loading.value = false }
+  } catch (error) { loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败')) } finally { loading.value = false }
 }
 async function saveTags() {
-  if (!mailbox.value) return
+  if (!mailbox.value || savingTags.value) return
   savingTags.value = true
   try {
     mailbox.value = await mailboxApi.update(mailbox.value.id, { tag_ids: selectedTagIds.value })
     ElMessage.success('标签已保存')
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '标签保存失败'))
+    if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '标签保存失败'))
   } finally { savingTags.value = false }
 }
 function openEmail(row: EmailItem) { router.push(`/emails/${row.id}`) }
@@ -43,7 +44,7 @@ async function copyMailboxInfo(event: MouseEvent) {
   event.stopPropagation()
   if (!mailbox.value) return
   try { await navigator.clipboard.writeText(mailbox.value.email_address); ElMessage.success('邮箱地址已复制') }
-  catch { ElMessage.error('复制失败，请检查浏览器权限') }
+  catch (error) { if (!isAuthFailure(error)) ElMessage.error('复制失败，请检查浏览器权限') }
 }
 watch(() => route.params.id, load)
 onMounted(load)

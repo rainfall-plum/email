@@ -3,10 +3,12 @@ import hashlib
 import hmac
 import os
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import jwt
 
 from app.config.settings import get_settings
+from app.config.logging import get_logger
 
 
 PASSWORD_ITERATIONS = 600_000
@@ -40,16 +42,19 @@ def verify_password(password: str, encoded_hash: str) -> bool:
         expected = base64.urlsafe_b64decode(digest_text.encode("ascii"))
         actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
         return hmac.compare_digest(actual, expected)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, OverflowError) as exc:
+        get_logger("auth").error("Password hash verification failed exception_type=%s", type(exc).__name__)
         return False
 
 
-def create_access_token(subject: str, username: str) -> str:
+def create_access_token(subject: str, username: str, auth_version: int = 1) -> str:
     settings = get_settings()
     now = datetime.now(timezone.utc)
     payload = {
         "sub": subject,
         "username": username,
+        "auth_version": auth_version,
+        "jti": uuid4().hex,
         "iat": now,
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
     }
@@ -58,4 +63,4 @@ def create_access_token(subject: str, username: str) -> str:
 
 def decode_access_token(token: str) -> dict[str, object]:
     settings = get_settings()
-    return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm], options={"require": ["sub", "iat", "exp"]})

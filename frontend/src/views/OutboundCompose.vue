@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -36,7 +37,7 @@ async function submit() {
   } catch (error) {
     const status = (error as { response?: { status?: number } }).response?.status
     if (status && status >= 400 && status < 500) pending.value = null
-    ElMessage.error(getApiErrorMessage(error, '提交未确认，请重试确认原任务，避免重复发送'))
+    if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '提交未确认，请重试确认原任务，避免重复发送'))
   } finally { submitting.value = false }
 }
 onMounted(load)

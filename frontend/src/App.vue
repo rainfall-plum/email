@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 
 import { authApi } from './api'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
+import { LOGIN_MESSAGES, synchronizeSession, type LoginReason } from './utils/session'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,16 +15,17 @@ const activeMenu = computed(() => route.path.startsWith('/outbound') ? '/outboun
 
 function logout() {
   authApi.logout()
-  router.push('/login')
 }
-function handleAuthExpired() {
-  if (!isLogin.value) {
-    ElMessage.warning('登录已过期，请重新登录')
-    router.push('/login')
-  }
+let redirecting = false
+async function handleAuthExpired(event: Event) {
+  if (isLogin.value || redirecting) return
+  redirecting = true
+  const reason = (event as CustomEvent<{ reason: LoginReason }>).detail?.reason || 'expired'
+  if (LOGIN_MESSAGES[reason]) ElMessage.warning(LOGIN_MESSAGES[reason])
+  try { await router.replace('/login') } finally { redirecting = false }
 }
-onMounted(() => window.addEventListener('email-auth-expired', handleAuthExpired))
-onBeforeUnmount(() => window.removeEventListener('email-auth-expired', handleAuthExpired))
+onMounted(() => { window.addEventListener('email-auth-expired', handleAuthExpired); window.addEventListener('storage', synchronizeSession) })
+onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleAuthExpired); window.removeEventListener('storage', synchronizeSession) })
 </script>
 
 <template>

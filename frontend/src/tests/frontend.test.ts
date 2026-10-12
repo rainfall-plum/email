@@ -21,7 +21,7 @@ describe('frontend safety helpers', () => {
 
   it('detects the local JWT session token', () => {
     expect(hasAccessToken()).toBe(false)
-    localStorage.setItem('email_access_token', 'test-token')
+    localStorage.setItem('email_access_token', `header.${btoa(JSON.stringify({ exp: Date.now() / 1000 + 60 }))}.signature`)
     expect(hasAccessToken()).toBe(true)
   })
 

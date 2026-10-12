@@ -11,6 +11,8 @@ import NotFound from './views/NotFound.vue'
 import OutboundCompose from './views/OutboundCompose.vue'
 import OutboundRecords from './views/OutboundRecords.vue'
 import { hasAccessToken } from './utils/email'
+import { adminApi } from './api'
+import { clearSession, isAuthFailure } from './utils/session'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -29,9 +31,13 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authenticated = hasAccessToken()
-  if (to.meta.requiresAuth && !authenticated) return '/login'
+  if (to.meta.requiresAuth && !authenticated) { clearSession(); return '/login' }
+  if (to.meta.requiresAuth && authenticated) {
+    try { await adminApi.profile() }
+    catch (error) { if (isAuthFailure(error)) { clearSession(); return '/login' } return false }
+  }
   if (to.path === '/login' && authenticated) return '/dashboard'
 })
 

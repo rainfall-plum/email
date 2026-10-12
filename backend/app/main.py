@@ -56,6 +56,47 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+
+
+class ImportBodyLimitMiddleware:
+    """Bound multipart bytes before Starlette can spool an uploaded file."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("path") != "/api/mailboxes/import-usernames":
+            return await self.app(scope, receive, send)
+        chunks = []
+        size = 0
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            size += len(message.get("body", b""))
+            if size > 1024 * 1024 + 64 * 1024:
+                app_logger.error("Username upload rejected code=file_too_large")
+                response = JSONResponse(status_code=413, content={"detail": {
+                    "code": "file_too_large", "message": "文件不能超过 1 MiB"
+                }})
+                return await response(scope, receive, send)
+            chunks.append(message.get("body", b""))
+            if not message.get("more_body", False):
+                break
+        body = b"".join(chunks)
+        delivered = False
+
+        async def bounded_receive():
+            nonlocal delivered
+            if not delivered:
+                delivered = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        return await self.app(scope, bounded_receive, send)
+
+
+app.add_middleware(ImportBodyLimitMiddleware)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(mailbox_router)
@@ -74,25 +115,25 @@ async def access_log_middleware(request: Request, call_next):
     response = None
     try:
         response = await call_next(request)
-    except Exception:
-        access_logger.exception(
-            "request_failed method=%s path=%s client=%s",
+    except Exception as exc:
+        access_logger.error(
+            "request_failed method=%s path=%s client=%s type=%s",
             request.method,
             request.url.path,
             request.client.host if request.client else "-",
+            type(exc).__name__,
         )
         raise
     finally:
         duration_ms = (perf_counter() - started) * 1000
         if response is not None:
             access_logger.info(
-                "request method=%s path=%s status=%s duration_ms=%.2f client=%s user_agent=%s",
+                "request method=%s path=%s status=%s duration_ms=%.2f client=%s",
                 request.method,
                 request.url.path,
                 response.status_code,
                 duration_ms,
                 request.client.host if request.client else "-",
-                request.headers.get("user-agent", "-")[:160],
             )
         reset_request_id(context_token)
     if response is None:
@@ -131,5 +172,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(_: Request, exc: Exception):
-    app_logger.error("Unhandled application error: %s", exc, exc_info=True)
+    # Exception strings and SQLAlchemy tracebacks can include request secrets.
+    app_logger.error("Unhandled application error type=%s", type(exc).__name__)
     return JSONResponse(status_code=500, content={"detail": "服务器内部错误，请稍后重试"})

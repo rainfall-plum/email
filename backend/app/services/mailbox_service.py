@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.config.logging import get_logger
 from app.config.settings import Settings
 from app.models import Email, Mailbox, MailGenerationRecord, Tag
-from app.utils.name_library import NameLibrary, NameLibraryError
+from app.utils.name_library import NAME_LIBRARY_LOCK, NameLibrary, NameLibraryError
 
 mailbox_logger = get_logger("mailbox")
 LOCAL_PART_PATTERN = re.compile(r"^[a-z0-9]+$")
@@ -171,10 +171,17 @@ def delete_mailbox(db: Session, mailbox: Mailbox) -> None:
 
 
 def generate_mailboxes(db: Session, settings: Settings, count: int, tag_ids: list[int]) -> list[Mailbox]:
+    with NAME_LIBRARY_LOCK:
+        return _generate_mailboxes_locked(db, settings, count, tag_ids)
+
+
+def _generate_mailboxes_locked(db: Session, settings: Settings, count: int, tag_ids: list[int]) -> list[Mailbox]:
     tags = _validate_tags(db, tag_ids)
     library = NameLibrary(settings.names_dir)
     generated: list[Mailbox] = []
     used_locals = {value.lower() for value in db.scalars(select(Mailbox.local_part))}
+    snapshot = library.snapshot()
+    pools_consumed = False
     try:
         pairs = library.reserve_pairs(count)
         for first, last in pairs:
@@ -202,14 +209,17 @@ def generate_mailboxes(db: Session, settings: Settings, count: int, tag_ids: lis
                 source="batch",
             )
         )
-        db.commit()
+        db.flush()
         library.consume_pairs(pairs)
-    except NameLibraryError:
+        pools_consumed = True
+        db.commit()
+    except Exception as exc:
         db.rollback()
-        raise
-    except IntegrityError as exc:
-        db.rollback()
-        mailbox_logger.error("Batch mailbox generation failed", exc_info=True)
+        if pools_consumed:
+            library.restore(snapshot)
+        mailbox_logger.error("Batch mailbox generation failed type=%s", type(exc).__name__)
+        if isinstance(exc, NameLibraryError):
+            raise
         raise MailboxServiceError("批量生成邮箱失败") from exc
     mailbox_logger.info("Mailboxes generated count=%s", len(generated))
     return generated

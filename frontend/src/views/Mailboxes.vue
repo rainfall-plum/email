@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
@@ -6,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { getApiErrorMessage, mailboxApi, tagApi } from '../api'
 import type { Mailbox, Tag } from '../types'
 import { formatDate } from '../utils/email'
+import UsernameImport from '../components/UsernameImport.vue'
 
 const router = useRouter()
 const mailboxes = ref<Mailbox[]>([])
@@ -36,11 +38,11 @@ async function load() {
       tagApi.list(),
     ])
     if (sequence !== loadSequence) return
-    if (result.pages > 0 && page.value > result.pages) { page.value = result.pages; void load(); return }
+    if (page.value > Math.max(1, result.pages)) { page.value = Math.max(1, result.pages); void load(); return }
     mailboxes.value = result.items
     total.value = result.total
     tags.value = tagData
-  } catch (error) { if (sequence === loadSequence) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
+  } catch (error) { if (sequence === loadSequence && !isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
 }
 function resetPageAndLoad() { page.value = 1; void load() }
 function onTagsChange() { if (filters.tag_ids.length) filters.untagged = false; resetPageAndLoad() }
@@ -49,6 +51,7 @@ function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.n
 function openMailbox(id: number) { router.push(`/mailboxes/${id}`) }
 
 async function create() {
+  if (createLoading.value) return
   createLoading.value = true
   try {
     await mailboxApi.create(form)
@@ -56,10 +59,11 @@ async function create() {
     createVisible.value = false
     form.local_part = ''; form.display_name = ''; form.tag_ids = []
     await load()
-  } catch (error) { ElMessage.error(getApiErrorMessage(error, '邮箱创建失败')) }
+  } catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱创建失败')) }
   finally { createLoading.value = false }
 }
 async function batch() {
+  if (batchLoading.value) return
   batchLoading.value = true
   try {
     const result = await mailboxApi.batch(count.value, batchTagIds.value)
@@ -67,7 +71,7 @@ async function batch() {
     batchVisible.value = false; batchTagIds.value = []
     page.value = 1
     await load()
-  } catch (error) { ElMessage.error(getApiErrorMessage(error, '批量生成失败')) }
+  } catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '批量生成失败')) }
   finally { batchLoading.value = false }
 }
 async function remove(mailbox: Mailbox) {
@@ -75,7 +79,7 @@ async function remove(mailbox: Mailbox) {
   catch { return }
   deleteLoadingId.value = mailbox.id
   try { await mailboxApi.remove(mailbox.id); ElMessage.success('邮箱已删除'); await load() }
-  catch (error) { ElMessage.error(getApiErrorMessage(error, '删除失败，请稍后重试')) }
+  catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '删除失败，请稍后重试')) }
   finally { deleteLoadingId.value = null }
 }
 function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; void load() }
@@ -86,7 +90,7 @@ onMounted(load)
 <template>
   <div class="page-heading">
     <div><h1>邮箱管理</h1><p>筛选、排序并管理单域名接收邮箱</p></div>
-    <div class="page-actions"><el-button @click="batchVisible = true">批量生成</el-button><el-button type="primary" @click="createVisible = true">创建邮箱</el-button></div>
+    <div class="page-actions"><UsernameImport @imported="resetPageAndLoad" /><el-button @click="batchVisible = true">批量生成</el-button><el-button type="primary" @click="createVisible = true">创建邮箱</el-button></div>
   </div>
   <el-card class="panel-card filter-card" shadow="never">
     <div class="filter-grid">

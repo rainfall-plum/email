@@ -1,6 +1,6 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.config.logging import get_logger
@@ -26,9 +26,31 @@ from app.services.mailbox_service import (
     update_mailbox,
 )
 from app.utils.name_library import NameLibraryError
+from app.services.username_import_service import MAX_IMPORT_BYTES, UsernameImportError, import_usernames, parse_username_file
 
 router = APIRouter(prefix="/api/mailboxes", tags=["mailboxes"])
 route_logger = get_logger("mailbox_api")
+
+
+@router.post("/import-usernames")
+async def post_import_usernames(
+    file: UploadFile = File(...),
+    admin: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        content = await file.read(MAX_IMPORT_BYTES + 1)
+        usernames = parse_username_file(file.filename, content)
+        return import_usernames(db, get_settings(), usernames, admin.id)
+    except UsernameImportError as exc:
+        route_logger.error("Username upload rejected actor_id=%s code=%s", admin.id, exc.code)
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from None
+    except Exception as exc:
+        db.rollback()
+        route_logger.error("Username upload failed actor_id=%s type=%s", admin.id, type(exc).__name__)
+        raise HTTPException(status_code=500, detail={"code": "import_failed", "message": "文件上传失败，请稍后重试"}) from None
+    finally:
+        await file.close()
 
 
 def _response(mailbox, metrics: tuple[int, int, object | None] | None = None) -> MailboxResponse:

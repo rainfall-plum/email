@@ -12,7 +12,7 @@ db_logger = get_logger("database")
 def build_engine(settings: Settings | None = None):
     runtime_settings = settings or get_settings()
     connect_args = {"check_same_thread": False} if runtime_settings.database_url.startswith("sqlite") else {}
-    return create_engine(runtime_settings.database_url, connect_args=connect_args, future=True)
+    return create_engine(runtime_settings.database_url, connect_args=connect_args, future=True, hide_parameters=True)
 
 
 engine = build_engine()
@@ -54,9 +54,13 @@ def init_db() -> None:
 def _apply_lightweight_dev_migrations() -> None:
     """Apply small additive SQLite changes without introducing a migration service."""
     inspector = inspect(engine)
-    if "emails" not in inspector.get_table_names():
-        return
-    columns = {column["name"] for column in inspector.get_columns("emails")}
-    if "message_date" not in columns:
+    tables = inspector.get_table_names()
+    if "admin_users" in tables and "auth_version" not in {column["name"] for column in inspector.get_columns("admin_users")}:
         with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE emails ADD COLUMN message_date DATETIME"))
+            connection.execute(text("ALTER TABLE admin_users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 1"))
+        db_logger.info("Admin session version migration completed")
+    if "emails" in tables:
+        columns = {column["name"] for column in inspector.get_columns("emails")}
+        if "message_date" not in columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE emails ADD COLUMN message_date DATETIME"))

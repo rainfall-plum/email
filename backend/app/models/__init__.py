@@ -7,6 +7,7 @@ from app.models.mailbox import Mailbox, mailbox_tags
 from app.models.system_setting import SystemSetting
 from app.models.tag import Tag
 from app.models.outbound_email import OutboundEmail
+from app.models.import_username import ImportUsername
 
 __all__ = [
     "AdminUser",
@@ -18,5 +19,6 @@ __all__ = [
     "SystemSetting",
     "Tag",
     "OutboundEmail",
+    "ImportUsername",
     "mailbox_tags",
 ]

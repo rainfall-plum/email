@@ -1,3 +1,4 @@
+import { validLocalSession } from './session'
 export function sanitizeHtmlForPreview(html: string): string {
   if (typeof DOMParser === 'undefined') return ''
   const document = new DOMParser().parseFromString(html, 'text/html')
@@ -18,7 +19,7 @@ export function sanitizeHtmlForPreview(html: string): string {
 }
 
 export function hasAccessToken(): boolean {
-  return Boolean(localStorage.getItem('email_access_token'))
+  return validLocalSession()
 }
 
 export function formatDate(value: string | null | undefined): string {

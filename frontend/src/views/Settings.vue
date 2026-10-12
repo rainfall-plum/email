@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { isAuthFailure } from '../utils/session'
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { getApiErrorMessage, settingsApi } from '../api'
 import type { SystemSetting } from '../types'
+import AdminAccount from '../components/AdminAccount.vue'
 
 const settings = ref<SystemSetting[]>([])
 const drafts = ref<Record<string, string>>({})
@@ -15,15 +17,16 @@ async function load() {
   try {
     settings.value = await settingsApi.list()
     drafts.value = Object.fromEntries(settings.value.map((item) => [item.key, item.value]))
-  } catch { ElMessage.error('配置加载失败，请稍后重试') } finally { loading.value = false }
+  } catch (error) { if (!isAuthFailure(error)) ElMessage.error('配置加载失败，请稍后重试') } finally { loading.value = false }
 }
 async function save(item: SystemSetting) {
-  if (!item.editable) return
+  if (!item.editable || savingKey.value !== null) return
+  savingKey.value = item.key
   try { await ElMessageBox.confirm(`确认保存“${item.label}”的新值吗？`, '保存配置', { type: 'warning' }) }
-  catch { return }
+  catch { savingKey.value = null; return }
   savingKey.value = item.key
   try { const updated = await settingsApi.update(item.key, drafts.value[item.key] ?? ''); settings.value = settings.value.map((value) => value.key === item.key ? updated : value); ElMessage.success('配置已保存') }
-  catch (error) { ElMessage.error(getApiErrorMessage(error, '配置保存失败')) }
+  catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '配置保存失败')) }
   finally { savingKey.value = null }
 }
 onMounted(load)
@@ -31,6 +34,7 @@ onMounted(load)
 
 <template>
   <div class="page-heading"><div><h1>系统设置</h1><p>仅展示安全白名单配置；敏感密钥和服务器路径不会显示。</p></div><el-button :loading="loading" @click="load">刷新配置</el-button></div>
+  <AdminAccount />
   <el-card class="panel-card" shadow="never">
     <el-table v-loading="loading" :data="settings" empty-text="暂无可用配置">
       <el-table-column prop="label" label="配置项" min-width="220" />
