@@ -25,6 +25,7 @@ async function load() {
 }
 function filter() { page.value = 1; load() }
 async function details(id: number) {
+  if (detailLoading.value) return
   detailId.value = id; dialog.value = true; selected.value = null; detailLoading.value = true; detailError.value = false
   try { selected.value = await outboundApi.get(id) } catch { detailError.value = true } finally { detailLoading.value = false }
 }

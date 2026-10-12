@@ -49,9 +49,15 @@ function onTagsChange() { if (filters.tag_ids.length) filters.untagged = false; 
 function onUntaggedChange() { if (filters.untagged) filters.tag_ids = []; resetPageAndLoad() }
 function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.name || `#${id}` }
 function openMailbox(id: number) { router.push(`/mailboxes/${id}`) }
+function validateCreate() {
+  const localPart = form.local_part.trim()
+  if (!/^[a-z0-9]+$/.test(localPart)) { ElMessage.warning('邮箱前缀只允许小写字母和数字'); return false }
+  form.local_part = localPart
+  return true
+}
 
 async function create() {
-  if (createLoading.value) return
+  if (createLoading.value || !validateCreate()) return
   createLoading.value = true
   try {
     await mailboxApi.create(form)
@@ -75,9 +81,10 @@ async function batch() {
   finally { batchLoading.value = false }
 }
 async function remove(mailbox: Mailbox) {
-  try { await ElMessageBox.confirm(`确定删除 ${mailbox.email_address}？邮件和附件记录也会被删除。`, '删除确认', { type: 'warning' }) }
-  catch { return }
+  if (deleteLoadingId.value !== null) return
   deleteLoadingId.value = mailbox.id
+  try { await ElMessageBox.confirm(`确定删除 ${mailbox.email_address}？邮件和附件记录也会被删除。`, '删除确认', { type: 'warning' }) }
+  catch { deleteLoadingId.value = null; return }
   try { await mailboxApi.remove(mailbox.id); ElMessage.success('邮箱已删除'); await load() }
   catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '删除失败，请稍后重试')) }
   finally { deleteLoadingId.value = null }
@@ -113,6 +120,6 @@ onMounted(load)
     </el-table>
     <div class="table-footer"><span class="muted">共 {{ total }} 个邮箱</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" layout="sizes, prev, pager, next" @size-change="onPageSizeChange" @current-change="onPageChange" /></div>
   </el-card>
-  <el-dialog v-model="createVisible" title="创建邮箱" :width="dialogWidth"><el-form label-position="top"><el-form-item label="邮箱前缀" required><el-input v-model="form.local_part" placeholder="只允许小写字母和数字" /></el-form-item><el-form-item label="显示名称"><el-input v-model="form.display_name" /></el-form-item><el-form-item label="标签"><el-select v-model="form.tag_ids" multiple style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item></el-form><template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :loading="createLoading" @click="create">创建</el-button></template></el-dialog>
-  <el-dialog v-model="batchVisible" title="批量生成邮箱" :width="dialogWidth"><p class="muted">系统将从 JSON 名字库生成邮箱，单次最多生成 1000 个。</p><el-form label-position="top"><el-form-item label="生成数量"><el-input-number v-model="count" :min="1" :max="1000" /></el-form-item><el-form-item label="统一标签"><el-select v-model="batchTagIds" multiple filterable clearable placeholder="可选" style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item></el-form><template #footer><el-button @click="batchVisible = false">取消</el-button><el-button type="primary" :loading="batchLoading" @click="batch">开始生成</el-button></template></el-dialog>
+  <el-dialog v-model="createVisible" title="创建邮箱" :width="dialogWidth"><el-form label-position="top" :model="form" @submit.prevent="create"><el-form-item label="邮箱前缀" required><el-input v-model="form.local_part" maxlength="64" placeholder="只允许小写字母和数字" /></el-form-item><el-form-item label="显示名称"><el-input v-model="form.display_name" maxlength="120" /></el-form-item><el-form-item label="标签"><el-select v-model="form.tag_ids" multiple style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item><div class="dialog-form-submit"><el-button @click="createVisible = false">取消</el-button><el-button type="primary" native-type="submit" :loading="createLoading">创建</el-button></div></el-form></el-dialog>
+  <el-dialog v-model="batchVisible" title="批量生成邮箱" :width="dialogWidth"><el-form label-position="top" @submit.prevent="batch"><p class="muted">系统将从 JSON 名字库生成邮箱，单次最多生成 1000 个。</p><el-form-item label="生成数量"><el-input-number v-model="count" :min="1" :max="1000" /></el-form-item><el-form-item label="统一标签"><el-select v-model="batchTagIds" multiple filterable clearable placeholder="可选" style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item><div class="dialog-form-submit"><el-button @click="batchVisible = false">取消</el-button><el-button type="primary" native-type="submit" :loading="batchLoading">开始生成</el-button></div></el-form></el-dialog>
 </template>

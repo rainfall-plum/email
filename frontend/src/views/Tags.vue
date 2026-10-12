@@ -22,19 +22,21 @@ async function create() {
   finally { creating.value = false }
 }
 async function rename(tag: Tag) {
+  if (renamingId.value !== null || deletingId.value !== null) return
+  renamingId.value = tag.id
   let result: { value: string }
   try { result = await ElMessageBox.prompt('输入新的标签名称', '修改标签', { inputValue: tag.name }) }
-  catch { return }
-  if (!result.value.trim()) { ElMessage.warning('标签名称不能为空'); return }
-  renamingId.value = tag.id
+  catch { renamingId.value = null; return }
+  if (!result.value.trim()) { renamingId.value = null; ElMessage.warning('标签名称不能为空'); return }
   try { await tagApi.update(tag.id, result.value.trim()); ElMessage.success('标签已更新'); await load() }
   catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '标签修改失败')) }
   finally { renamingId.value = null }
 }
 async function remove(tag: Tag) {
-  try { await ElMessageBox.confirm(`确定删除标签“${tag.name}”？邮箱关联将被移除。`, '删除确认', { type: 'warning' }) }
-  catch { return }
+  if (renamingId.value !== null || deletingId.value !== null) return
   deletingId.value = tag.id
+  try { await ElMessageBox.confirm(`确定删除标签“${tag.name}”？邮箱关联将被移除。`, '删除确认', { type: 'warning' }) }
+  catch { deletingId.value = null; return }
   try { await tagApi.remove(tag.id); ElMessage.success('标签已删除'); await load() }
   catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '标签删除失败')) }
   finally { deletingId.value = null }
@@ -44,5 +46,5 @@ onMounted(load)
 
 <template>
   <div class="page-heading"><div><h1>标签管理</h1><p>用标签整理接收邮箱；标签 ID 稳定，名称可以安全修改。</p></div><el-button :loading="loading" @click="load">刷新</el-button></div>
-  <el-card class="panel-card" shadow="never"><el-form class="inline-form" @submit.prevent="create"><el-form-item><el-input v-model="name" placeholder="新标签名称" /></el-form-item><el-form-item><el-button type="primary" :loading="creating" native-type="submit">添加标签</el-button></el-form-item></el-form><el-divider /><el-table v-loading="loading" :data="tags" empty-text="暂无标签"><el-table-column prop="name" label="标签名称" min-width="220" /><el-table-column prop="id" label="稳定 ID" width="110" /><el-table-column label="操作" width="180"><template #default="{ row }"><el-button link type="primary" :loading="renamingId === row.id" :disabled="deletingId === row.id" @click="rename(row)">修改</el-button><el-button link type="danger" :loading="deletingId === row.id" :disabled="renamingId === row.id" @click="remove(row)">删除</el-button></template></el-table-column></el-table></el-card>
+  <el-card class="panel-card" shadow="never"><el-form class="inline-form" @submit.prevent="create"><el-form-item label="新标签名称"><el-input v-model="name" aria-label="新标签名称" placeholder="新标签名称" /></el-form-item><el-form-item><el-button type="primary" :loading="creating" native-type="submit">添加标签</el-button></el-form-item></el-form><el-divider /><el-table v-loading="loading" :data="tags" empty-text="暂无标签"><el-table-column prop="name" label="标签名称" min-width="220" /><el-table-column prop="id" label="稳定 ID" width="110" /><el-table-column label="操作" width="180"><template #default="{ row }"><el-button link type="primary" :loading="renamingId === row.id" :disabled="deletingId === row.id" @click="rename(row)">修改</el-button><el-button link type="danger" :loading="deletingId === row.id" :disabled="renamingId === row.id" @click="remove(row)">删除</el-button></template></el-table-column></el-table></el-card>
 </template>

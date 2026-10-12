@@ -53,8 +53,8 @@ onMounted(load)
       <el-form-item label="收件人" prop="recipient" :error="errors.recipient"><el-input v-model="draft.recipient" maxlength="254" placeholder="一个外部邮箱地址" /></el-form-item>
       <el-form-item label="主题" prop="subject" :error="errors.subject"><el-input v-model="draft.subject" maxlength="200" show-word-limit /></el-form-item>
       <el-form-item label="纯文本正文" prop="body_text" :error="errors.body_text"><el-input v-model="draft.body_text" type="textarea" :rows="10" maxlength="100000" show-word-limit /></el-form-item>
+      <p v-if="pending && !submitting" role="status">上次提交结果未确认，表单已锁定。请点击“确认原任务”，使用相同提交标识安全查询或重试。</p>
+      <div class="page-actions"><el-button type="primary" native-type="submit" :loading="submitting" :disabled="loading || loadError || !options.length">{{ pending ? '确认原任务' : '提交发送' }}</el-button><el-button native-type="button" :disabled="submitting" @click="router.push('/outbound')">取消</el-button></div>
     </el-form>
-    <p v-if="pending && !submitting" role="status">上次提交结果未确认，表单已锁定。请点击“确认原任务”，使用相同提交标识安全查询或重试。</p>
-    <div class="page-actions"><el-button type="primary" :loading="submitting" :disabled="loading || loadError || !options.length" @click="submit">{{ pending ? '确认原任务' : '提交发送' }}</el-button><el-button :disabled="submitting" @click="router.push('/outbound')">取消</el-button></div>
   </el-card>
 </template>
