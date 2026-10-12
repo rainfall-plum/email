@@ -37,7 +37,7 @@ const SAFE_CODES: Record<string, string> = {
   CURRENT_PASSWORD_INVALID: '当前密码不正确', INVALID_CURRENT_PASSWORD: '当前密码不正确',
   ADMIN_USERNAME_EXISTS: '管理员用户名已存在', USERNAME_ALREADY_EXISTS: '管理员用户名已存在',
   INVALID_USERNAME: '用户名须为 3–64 位，以字母开头，仅含字母、数字和下划线',
-  INVALID_PASSWORD: '新密码须为 12–128 个字符', NO_CHANGES: '请至少修改一项管理员信息',
+  INVALID_PASSWORD: '新密码须为 4–128 个字符', NO_CHANGES: '请至少修改一项管理员信息',
   invalid_json: 'JSON 解析失败，请检查文件格式和 UTF-8 编码', unsupported_structure: 'JSON 必须是仅包含 usernames 数组的对象',
   file_too_large: '文件不能超过 1 MiB', too_many_usernames: '最多允许 1000 个用户名',
   invalid_extension: '请选择 .json 文件',

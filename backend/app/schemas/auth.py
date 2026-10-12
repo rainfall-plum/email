@@ -21,7 +21,7 @@ class CredentialsRequest(BaseModel):
 
     current_password: str = Field(min_length=1, max_length=128, repr=False)
     new_username: str | None = Field(default=None, min_length=3, max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_]*$")
-    new_password: str | None = Field(default=None, min_length=12, max_length=128, repr=False)
+    new_password: str | None = Field(default=None, min_length=4, max_length=128, repr=False)
     confirm_new_password: str | None = Field(default=None, max_length=128, repr=False)
 
     @model_validator(mode="after")

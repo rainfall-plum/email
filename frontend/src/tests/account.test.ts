@@ -33,8 +33,12 @@ describe('administrator account', () => {
     await form('admin'); await submit(); expect(ElMessage.warning).toHaveBeenCalled(); expect(adminApi.credentials).not.toHaveBeenCalled()
   })
   it('validates password length and confirmation', async () => {
-    await account(); await form(); await password('short'); await submit(); expect(adminApi.credentials).not.toHaveBeenCalled()
+    await account(); await form(); await password('abc'); await submit(); expect(adminApi.credentials).not.toHaveBeenCalled()
     await password('new-fixture-only-password', 'different-fixture'); await submit(); expect(adminApi.credentials).not.toHaveBeenCalled()
+  })
+  it('accepts the configured four-character minimum', async () => {
+    await account(); await form('admin'); await password('abcd'); await submit()
+    expect(adminApi.credentials).toHaveBeenCalledWith(expect.objectContaining({ new_password: 'abcd', confirm_new_password: 'abcd' }))
   })
   it.each(['username', 'password', 'both'])('supports changing %s and logs out on success', async mode => {
     establishSession('synthetic-session')

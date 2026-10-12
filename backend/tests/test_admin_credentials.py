@@ -114,7 +114,19 @@ def test_wrong_current_password_preserves_account(credential_env):
         assert (admin.username, admin.password_hash, admin.auth_version) == ("testadmin", previous_hash, 1)
 
 
-@pytest.mark.parametrize("case", ["missing_current", "empty_current", "no_changes", "short_name", "long_name", "chinese", "space", "dot", "dash", "digit_start", "short_password", "long_password", "confirmation", "extra"])
+def test_four_character_password_is_accepted(credential_env):
+    client, _, (current, _, _) = credential_env
+    session = headers(client, current)
+    response = client.patch(
+        "/api/admin/credentials",
+        headers=session,
+        json={"current_password": current, "new_password": "abcd", "confirm_new_password": "abcd"},
+    )
+    assert response.status_code == 200
+    assert login(client, "abcd").status_code == 200
+
+
+@pytest.mark.parametrize("case", ["missing_current", "empty_current", "no_changes", "short_name", "long_name", "chinese", "space", "dot", "dash", "digit_start", "long_password", "confirmation", "extra"])
 def test_invalid_credentials_inputs(credential_env, case):
     client, _, (current, replacement, _) = credential_env
     payload = {"current_password": current, "new_username": "renamed"}
@@ -126,8 +138,8 @@ def test_invalid_credentials_inputs(credential_env, case):
         payload.pop("new_username")
     elif case in {"short_name", "long_name", "chinese", "space", "dot", "dash", "digit_start"}:
         payload["new_username"] = {"short_name": "ab", "long_name": "a" * 65, "chinese": "管理员", "space": "admin name", "dot": "admin.name", "dash": "admin-name", "digit_start": "1admin"}[case]
-    elif case in {"short_password", "long_password"}:
-        payload["new_password"] = secrets.token_urlsafe(4) if case == "short_password" else secrets.token_urlsafe(130)
+    elif case == "long_password":
+        payload["new_password"] = secrets.token_urlsafe(130)
     elif case == "confirmation":
         payload.update(new_password=replacement, confirm_new_password=current)
     else:

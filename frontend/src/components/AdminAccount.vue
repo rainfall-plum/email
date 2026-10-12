@@ -26,7 +26,7 @@ async function load() {
 function validate() {
   errors.current_password = form.current_password ? '' : '请输入当前密码'
   errors.new_username = /^[A-Za-z][A-Za-z0-9_]{2,63}$/.test(form.new_username) ? '' : '用户名须为 3–64 位，以字母开头，仅含字母、数字和下划线'
-  errors.new_password = changePassword.value && (form.new_password.length < 12 || form.new_password.length > 128) ? '新密码须为 12–128 个字符' : ''
+  errors.new_password = changePassword.value && (form.new_password.length < 4 || form.new_password.length > 128) ? '新密码须为 4–128 个字符' : ''
   errors.confirm_new_password = changePassword.value && form.new_password !== form.confirm_new_password ? '两次输入的新密码不一致' : ''
   if (Object.values(errors).some(Boolean)) return false
   if (form.new_username === username.value && !changePassword.value) { ElMessage.warning('请修改用户名或启用修改密码'); return false }
@@ -56,7 +56,7 @@ onMounted(load)
         <el-form-item label="当前密码" required :error="errors.current_password"><el-input v-model="form.current_password" type="password" show-password autocomplete="current-password" maxlength="128" /></el-form-item>
         <el-checkbox v-model="changePassword">修改密码</el-checkbox>
         <div v-if="changePassword" class="password-fields">
-          <p id="admin-password-rule" class="muted">新密码须为 12–128 个字符。建议使用不易猜测的长密码，避免重复使用其他网站的密码。</p>
+          <p id="admin-password-rule" class="muted">新密码须为 4–128 个字符。建议使用不易猜测的长密码，避免重复使用其他网站的密码。</p>
           <el-form-item label="新密码" required :error="errors.new_password"><el-input v-model="form.new_password" type="password" show-password autocomplete="new-password" maxlength="128" aria-describedby="admin-password-rule" /></el-form-item>
           <el-form-item label="确认新密码" required :error="errors.confirm_new_password"><el-input v-model="form.confirm_new_password" type="password" show-password autocomplete="new-password" maxlength="128" /></el-form-item>
         </div>
