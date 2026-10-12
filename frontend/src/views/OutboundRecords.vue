@@ -9,7 +9,7 @@ import { formatDate } from '../utils/email'
 const router = useRouter()
 const labels: Record<OutboundStatus, string> = { queued: '等待发送', sending: '正在发送', sent: '已交给 Postfix', retrying: '等待重试', failed: '发送失败' }
 const rows = ref<OutboundEmail[]>([]); const total = ref(0); const page = ref(1); const pageSize = ref(20)
-const status = ref(''); const sort = ref('created_desc'); const loading = ref(false); const error = ref(false)
+const status = ref('all'); const sort = ref('created_desc'); const loading = ref(false); const error = ref(false)
 const selected = ref<OutboundEmail | null>(null); const dialog = ref(false); const detailLoading = ref(false); const detailError = ref(false)
 const detailId = ref<number | null>(null); const retrying = ref<number | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined; let generation = 0
@@ -17,7 +17,7 @@ async function load() {
   const request = ++generation
   loading.value = true
   try {
-    const data = await outboundApi.list({ page: page.value, page_size: pageSize.value, status: status.value || undefined, sort: sort.value })
+    const data = await outboundApi.list({ page: page.value, page_size: pageSize.value, status: status.value === 'all' ? undefined : status.value, sort: sort.value })
     if (request !== generation) return
     rows.value = data.items; total.value = data.total; error.value = false
   } catch { if (request === generation) error.value = true } finally { if (request === generation) loading.value = false }
@@ -42,7 +42,7 @@ onBeforeUnmount(() => { generation++; clearInterval(timer) })
 
 <template>
   <div class="page-heading"><div><h1>发送记录</h1><p>最多尝试5次，失败后依次间隔1、5、15、30分钟。已交给 Postfix 不代表收件人已收到。</p></div><div class="page-actions"><el-button :loading="loading" @click="load">刷新</el-button><el-button type="primary" @click="router.push('/outbound/new')">发送邮件</el-button></div></div>
-  <el-card class="panel-card filter-card" shadow="never"><el-form class="filter-grid" label-position="top"><el-form-item label="发送状态"><el-select v-model="status" @change="filter"><el-option label="全部状态" value="" /><el-option v-for="(label, key) in labels" :key="key" :label="label" :value="key" /></el-select></el-form-item><el-form-item label="创建时间排序"><el-select v-model="sort" @change="filter"><el-option label="最新创建优先" value="created_desc" /><el-option label="最早创建优先" value="created_asc" /></el-select></el-form-item></el-form></el-card>
+  <el-card class="panel-card filter-card" shadow="never"><el-form class="filter-grid" label-position="top"><el-form-item label="发送状态"><el-select v-model="status" @change="filter"><el-option label="全部状态" value="all" /><el-option v-for="(label, key) in labels" :key="key" :label="label" :value="key" /></el-select></el-form-item><el-form-item label="创建时间排序"><el-select v-model="sort" @change="filter"><el-option label="最新创建优先" value="created_desc" /><el-option label="最早创建优先" value="created_asc" /></el-select></el-form-item></el-form></el-card>
   <el-card class="panel-card" shadow="never">
     <el-result v-if="error" icon="error" title="发送记录加载失败"><template #extra><el-button @click="load">重新加载</el-button></template></el-result>
     <el-table v-else v-loading="loading" :data="rows" empty-text="暂无发送记录">

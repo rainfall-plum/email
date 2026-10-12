@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { outboundApi, getApiErrorMessage } from '../api'
@@ -13,7 +13,9 @@ const draft = reactive<OutboundDraft>({ sender_mailbox_id: undefined, recipient:
 // Preserve exactly the submitted payload after an uncertain network result; repeat uses the same key.
 const pending = ref<OutboundDraft | null>(null)
 const errors = ref({ sender_mailbox_id: '', recipient: '', subject: '', body_text: '' })
-function validate() { errors.value = validateOutbound(draft); return !Object.values(errors.value).some(Boolean) }
+const validated = ref(false)
+function validate() { validated.value = true; errors.value = validateOutbound(draft); return !Object.values(errors.value).some(Boolean) }
+watch(draft, () => { if (validated.value) errors.value = validateOutbound(draft) })
 async function load() {
   loading.value = true; loadError.value = false
   try {
