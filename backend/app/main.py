@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 from time import perf_counter
 from uuid import uuid4
@@ -19,6 +20,9 @@ from app.routers.emails import router as email_router
 from app.routers.settings import router as settings_router
 from app.routers.dashboard import router as dashboard_router
 from app.services.admin_service import ensure_bootstrap_admin
+from app.routers.outbound import router as outbound_router
+from app.workers.outbound_worker import OutboundWorker
+from app.database.session import SessionLocal
 
 settings = get_settings()
 configure_logging(settings.log_dir)
@@ -40,8 +44,15 @@ async def lifespan(_: FastAPI):
     except Exception:
         app_logger.critical("Service startup failed", exc_info=True)
         raise
-    yield
-    app_logger.info("Service stopped")
+    worker = OutboundWorker(SessionLocal, settings) if settings.outbound_worker_enabled else None
+    if worker:
+        worker.start()
+    try:
+        yield
+    finally:
+        if worker:
+            await asyncio.to_thread(worker.stop)
+        app_logger.info("Service stopped")
 
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
@@ -52,6 +63,7 @@ app.include_router(tag_router)
 app.include_router(email_router)
 app.include_router(settings_router)
 app.include_router(dashboard_router)
+app.include_router(outbound_router)
 
 
 @app.middleware("http")

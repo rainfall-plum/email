@@ -3,6 +3,10 @@
   font-synthesis: none;
   color-scheme: light;
 }
+.compose-card { max-width: 860px; }
+.outbound-details { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 12px; }
+.outbound-details dt { color: var(--text-muted); }
+.outbound-details dd { margin: 0; overflow-wrap: anywhere; }
 :root, [data-theme="system"], [data-theme="white"] {
   --surface: #fff; --surface-soft: #f7f9fc; --surface-muted: #eef2f7; --page: #f3f6fa;
   --text: #172033; --text-muted: #6d7b8d; --border: #e2e8f0; --primary: #168d79;

@@ -6,6 +6,7 @@ from app.models.mail_generation_record import MailGenerationRecord
 from app.models.mailbox import Mailbox, mailbox_tags
 from app.models.system_setting import SystemSetting
 from app.models.tag import Tag
+from app.models.outbound_email import OutboundEmail
 
 __all__ = [
     "AdminUser",
@@ -16,5 +17,6 @@ __all__ = [
     "Mailbox",
     "SystemSetting",
     "Tag",
+    "OutboundEmail",
     "mailbox_tags",
 ]

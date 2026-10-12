@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     bootstrap_admin_username: str | None = None
     bootstrap_admin_password: str | None = None
+    outbound_worker_enabled: bool = True
 
 
 @lru_cache

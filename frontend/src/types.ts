@@ -62,3 +62,30 @@ export interface Tag {
   id: number
   name: string
 }
+
+export type OutboundStatus = 'queued' | 'sending' | 'sent' | 'retrying' | 'failed'
+export interface OutboundEmail {
+  id: number
+  sender_mailbox_id: number
+  sender: string
+  recipient: string
+  subject: string
+  body_text?: string
+  status: OutboundStatus
+  attempt_count: number
+  max_attempts: number
+  last_error: string | null
+  next_attempt_at: string | null
+  message_id: string
+  created_at: string
+  updated_at: string
+  sent_at: string | null
+  failed_at: string | null
+}
+export interface OutboundDraft {
+  sender_mailbox_id: number | undefined
+  recipient: string
+  subject: string
+  body_text: string
+  idempotency_key: string
+}

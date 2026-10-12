@@ -58,7 +58,7 @@ onMounted(load)
         <div class="mailbox-title-row"><h1>{{ mailbox?.email_address || '邮箱详情' }}</h1><el-button v-if="mailbox" link type="primary" @click.stop="copyMailboxInfo">复制邮箱</el-button></div>
         <p>{{ mailbox?.display_name || '接收邮箱' }} · 共 {{ emails.length }} 封邮件</p>
       </div>
-      <el-button :loading="loading" @click="load">刷新</el-button>
+      <div class="page-actions"><el-button v-if="mailbox" type="primary" @click="router.push({ path: '/outbound/new', query: { sender: mailbox.id } })">发送邮件</el-button><el-button :loading="loading" @click="load">刷新</el-button></div>
     </div>
     <el-card class="panel-card tag-assignment-card" shadow="never">
       <template #header><div class="card-header-row"><strong>邮箱标签</strong><span class="muted">标签使用稳定 ID 关联，修改名称不会丢失关系</span></div></template>

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { OutboundDraft, OutboundEmail } from './types'
 
 import type { Attachment, DashboardStats, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
 
@@ -28,6 +29,8 @@ const SAFE_BUSINESS_ERRORS = new Set([
   '邮箱前缀已存在', '邮箱前缀只允许小写字母和数字', '存在无效标签', '标签名称不能为空',
   '标签名称已存在', '邮箱不存在', '邮件不存在', '附件不存在', '附件文件不存在',
   '不支持的邮箱排序方式', '不支持的标签匹配方式',
+  '发件邮箱不存在或不属于系统域名', '提交标识已使用，请刷新后重新创建',
+  '仅可重试未满5次的失败邮件', '发送记录不存在',
 ])
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -106,3 +109,13 @@ export const settingsApi = {
 }
 
 export type { Attachment }
+
+export const outboundApi = {
+  async options() { return (await api.get<{ id: number; email_address: string }[]>('/outbound-emails/options')).data },
+  async create(payload: OutboundDraft) { return (await api.post<OutboundEmail>('/outbound-emails', payload)).data },
+  async list(params: { page: number; page_size: number; status?: string; sort: string }) {
+    return (await api.get<{ items: OutboundEmail[]; total: number }>('/outbound-emails', { params })).data
+  },
+  async get(id: number) { return (await api.get<OutboundEmail>(`/outbound-emails/${id}`)).data },
+  async retry(id: number) { return (await api.post<OutboundEmail>(`/outbound-emails/${id}/retry`)).data },
+}
