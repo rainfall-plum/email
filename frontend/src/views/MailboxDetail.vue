@@ -16,18 +16,21 @@ const selectedTagIds = ref<number[]>([])
 const savingTags = ref(false)
 const loadError = ref(false)
 const mailboxId = computed(() => Number(route.params.id))
+let loadSequence = 0
 async function load() {
+  const sequence = ++loadSequence
   loading.value = true
   loadError.value = false
   try {
     const [mailboxData, emailData, tagData] = await Promise.all([
       mailboxApi.get(mailboxId.value), mailboxApi.emails(mailboxId.value), tagApi.list(),
     ])
+    if (sequence !== loadSequence) return
     mailbox.value = mailboxData
     selectedTagIds.value = [...mailboxData.tag_ids]
     emails.value = emailData
     tags.value = tagData
-  } catch (error) { loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败')) } finally { loading.value = false }
+  } catch (error) { if (sequence === loadSequence) { loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败')) } } finally { if (sequence === loadSequence) loading.value = false }
 }
 async function saveTags() {
   if (!mailbox.value || savingTags.value) return
@@ -76,7 +79,7 @@ onMounted(load)
       <el-empty v-else :image-size="54" description="暂未添加标签" />
     </el-card>
     <el-card class="panel-card mail-list-card" shadow="never">
-      <template #header><div class="card-header-row"><strong>邮件列表</strong><span class="muted">点击一行查看邮件详情</span></div></template>
+      <template #header><div class="card-header-row"><strong>邮件列表</strong><span class="muted">使用操作列“打开”查看邮件详情</span></div></template>
         <el-table v-if="!loadError" v-loading="loading" :data="emails" stripe empty-text="暂无邮件" @row-click="openEmail">
         <el-table-column label="状态" width="85"><template #default="{ row }"><el-tag :type="row.is_read ? 'info' : 'warning'">{{ row.is_read ? '已读' : '未读' }}</el-tag></template></el-table-column>
         <el-table-column prop="sender" label="发件人" min-width="220" show-overflow-tooltip />

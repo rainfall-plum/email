@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import ElementPlus, { ElMessage } from 'element-plus'
+import ElementPlus, { ElMessage, ElMessageBox } from 'element-plus'
 import AdminAccount from '../components/AdminAccount.vue'
 import Login from '../views/Login.vue'
 import { adminApi, authApi } from '../api'
@@ -20,6 +20,7 @@ beforeEach(() => {
   vi.mocked(adminApi.profile).mockResolvedValue({ id: 1, username: 'admin' })
   vi.mocked(adminApi.credentials).mockResolvedValue({ code: 'ADMIN_CREDENTIALS_CHANGED' })
   vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({ close: vi.fn() })); vi.spyOn(ElMessage, 'error').mockImplementation(() => ({ close: vi.fn() })); vi.spyOn(ElMessage, 'success').mockImplementation(() => ({ close: vi.fn() }))
+  vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
 })
 afterEach(() => { wrapper?.unmount(); document.body.innerHTML = ''; vi.restoreAllMocks() })
 describe('administrator account', () => {

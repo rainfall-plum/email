@@ -11,11 +11,12 @@ import { formatDate, sanitizeHtmlForPreview } from '../utils/email'
 const route = useRoute(); const router = useRouter(); const email = ref<EmailItem | null>(null); const loading = ref(false)
 const downloadingIds = ref<Set<number>>(new Set())
 const loadError = ref(false)
+let loadSequence = 0
 const safeHtml = computed(() => {
   if (!email.value?.body_html) return ''
   return sanitizeHtmlForPreview(email.value.body_html)
 })
-async function load() { loading.value = true; loadError.value = false; try { email.value = await emailApi.get(Number(route.params.id)) } catch (error) { email.value = null; loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } finally { loading.value = false } }
+async function load() { const sequence = ++loadSequence; loading.value = true; loadError.value = false; try { const next = await emailApi.get(Number(route.params.id)); if (sequence === loadSequence) email.value = next } catch (error) { if (sequence === loadSequence) { email.value = null; loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } } finally { if (sequence === loadSequence) loading.value = false } }
 function formatSize(size: number) { return size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` }
 async function downloadAttachment(id: number, filename: string) {
   if (downloadingIds.value.has(id)) return

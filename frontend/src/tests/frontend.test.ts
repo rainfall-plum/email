@@ -19,6 +19,11 @@ describe('frontend safety helpers', () => {
     expect(sanitizeHtmlForPreview('<iframe src="x"></iframe><object data="x"></object>')).toBe('')
   })
 
+  it('removes style sheets, SVG and responsive external resource attributes', () => {
+    const result = sanitizeHtmlForPreview('<style>@import url(https://tracker.test/a.css); body { background: url(https://tracker.test/pixel) }</style><svg><script>alert(1)</script></svg><img srcset="https://tracker.test/a 1x" src="https://tracker.test/b"><p>readable</p>')
+    expect(result).toBe('<img><p>readable</p>')
+  })
+
   it('detects the local JWT session token', () => {
     expect(hasAccessToken()).toBe(false)
     localStorage.setItem('email_access_token', `header.${btoa(JSON.stringify({ exp: Date.now() / 1000 + 60 }))}.signature`)

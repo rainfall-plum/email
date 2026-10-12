@@ -39,7 +39,7 @@ async function choose(event: Event) {
     if (validation.error) return
     file.value = selected
     if (validation.invalid) warning.value = `发现 ${validation.invalid} 个格式不合法的用户名。导入时将跳过这些条目，并显示每项原因。`
-  } catch { error.value = 'JSON 解析失败，请使用 UTF-8 编码的有效 JSON 文件' }
+  } catch { if (current === selection) error.value = 'JSON 解析失败，请使用 UTF-8 编码的有效 JSON 文件' }
   finally { if (current === selection) checking.value = false }
 }
 async function submit() {
@@ -58,7 +58,7 @@ function poolCount(reason: string) { return result.value?.rejected_usernames.fil
 
 <template>
   <el-button @click="open">上传用户名 JSON</el-button>
-  <el-dialog v-model="visible" title="上传用户名 JSON" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="(done: () => void) => { if (!busy) done() }">
+  <el-dialog v-model="visible" title="上传用户名 JSON" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="!busy && !checking" :close-on-press-escape="!busy && !checking" :show-close="!busy && !checking" :before-close="(done: () => void) => { if (!busy && !checking) done() }">
     <p id="import-rules">文件仅包含 <code>usernames</code> 字段（用户名字符串数组）。最多 1000 个用户名，文件不超过 1 MiB，使用 UTF-8 编码。用户名长度 1–64 位，只允许小写字母和数字，不能含空格。域名由系统配置决定。</p>
     <h3>JSON 格式示例</h3><pre class="json-example" aria-label="JSON 格式示例">{{ IMPORT_EXAMPLE }}</pre>
     <el-button @click="download">下载示例 JSON 文件</el-button>

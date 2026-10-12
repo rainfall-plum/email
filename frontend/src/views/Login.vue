@@ -3,7 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { authApi } from '../api'
+import { authApi, getApiErrorMessage } from '../api'
 import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 import { LOGIN_MESSAGES, loginReason } from '../utils/session'
 
@@ -20,8 +20,8 @@ async function submit() {
     await authApi.login(form.username, form.password)
     ElMessage.success('登录成功')
     router.push('/dashboard')
-  } catch {
-    ElMessage.error('用户名或密码错误')
+  } catch (error) {
+    ElMessage.error(getApiErrorMessage(error, '登录服务暂不可用，请稍后重试'))
   } finally { loading.value = false; form.password = '' }
 }
 </script>
@@ -30,7 +30,7 @@ async function submit() {
   <div class="login-page">
     <div class="login-theme"><ThemeSwitcher /></div>
     <el-card class="login-card">
-      <div class="login-brand">MAIL<span>BOX</span></div>
+      <h1 class="login-brand">MAIL<span>BOX</span></h1>
       <div class="login-subtitle">单域名管理员邮箱接收平台</div>
       <el-alert v-if="reason && LOGIN_MESSAGES[reason]" :title="LOGIN_MESSAGES[reason]" type="warning" :closable="false" class="login-reason" role="status" />
       <el-form @submit.prevent="submit" label-position="top">

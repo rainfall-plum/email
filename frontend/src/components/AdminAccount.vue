@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminApi, getApiErrorMessage } from '../api'
 import { clearSession, isAuthFailure } from '../utils/session'
 
@@ -36,6 +36,7 @@ async function save() {
   if (saving.value || !validate()) return
   saving.value = true
   try {
+    await ElMessageBox.confirm('修改管理员凭据后，所有已登录会话都会立即失效，需要使用新信息重新登录。确定继续吗？', '确认修改管理员信息', { confirmButtonText: '确认修改', cancelButtonText: '取消', type: 'warning' })
     await adminApi.credentials({ current_password: form.current_password, ...(form.new_username !== username.value ? { new_username: form.new_username } : {}), ...(changePassword.value ? { new_password: form.new_password, confirm_new_password: form.confirm_new_password } : {}) })
     reset()
     clearSession('changed')

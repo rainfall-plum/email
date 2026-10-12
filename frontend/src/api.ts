@@ -33,6 +33,7 @@ const SAFE_BUSINESS_ERRORS = new Set([
   '仅可重试未满5次的失败邮件', '发送记录不存在',
 ])
 const SAFE_CODES: Record<string, string> = {
+  INVALID_CREDENTIALS: '用户名或密码错误', AUTH_UNAVAILABLE: '登录服务暂不可用，请稍后重试',
   CURRENT_PASSWORD_INCORRECT: '当前密码不正确', NO_CREDENTIAL_CHANGES: '请至少修改一项管理员信息',
   CURRENT_PASSWORD_INVALID: '当前密码不正确', INVALID_CURRENT_PASSWORD: '当前密码不正确',
   ADMIN_USERNAME_EXISTS: '管理员用户名已存在', USERNAME_ALREADY_EXISTS: '管理员用户名已存在',
