@@ -36,7 +36,7 @@ onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleA
   <el-container v-else class="app-shell">
     <a class="skip-link" href="#main-content">跳转到主要内容</a>
     <el-aside width="224px" :class="['side-panel', { 'is-mobile-open': mobileNavOpen }]" :aria-hidden="!mobileNavOpen && undefined">
-      <div class="brand" aria-label="Mailbox 管理平台">MAIL<span>BOX</span></div>
+      <div class="brand" aria-label="Mailbox 管理平台"><img src="/favicon.png" alt="" class="brand-icon" />MAIL<span>BOX</span></div>
       <div class="brand-caption">管理员邮箱接收平台 · 内容与数据</div>
       <el-menu :default-active="activeMenu" router class="main-menu" aria-label="主导航" @select="mobileNavOpen = false">
         <el-menu-item index="/outbound" aria-label="发送记录" title="发送记录"><el-icon><Promotion /></el-icon><span class="menu-label">发送记录</span></el-menu-item>

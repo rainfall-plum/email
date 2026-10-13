@@ -30,7 +30,7 @@ async function submit() {
   <div class="login-page">
     <div class="login-theme"><ThemeSwitcher /></div>
     <el-card class="login-card">
-      <h1 class="login-brand">MAIL<span>BOX</span></h1>
+      <h1 class="login-brand"><img src="/favicon.png" alt="" class="brand-icon" />MAIL<span>BOX</span></h1>
       <div class="login-subtitle">单域名管理员邮箱接收平台</div>
       <el-alert v-if="reason && LOGIN_MESSAGES[reason]" :title="LOGIN_MESSAGES[reason]" type="warning" :closable="false" class="login-reason" role="status" />
       <el-form @submit.prevent="submit" label-position="top">

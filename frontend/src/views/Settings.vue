@@ -11,6 +11,7 @@ const settings = ref<SystemSetting[]>([])
 const drafts = ref<Record<string, string>>({})
 const loading = ref(false)
 const savingKey = ref<string | null>(null)
+const activeTab = ref<'config' | 'account'>('config')
 
 async function load() {
   loading.value = true
@@ -34,7 +35,8 @@ onMounted(load)
 
 <template>
   <div class="page-heading"><div><h1>系统设置</h1><p>仅展示安全白名单配置；敏感密钥和服务器路径不会显示。</p></div><el-button :loading="loading" @click="load">刷新配置</el-button></div>
-  <AdminAccount />
+  <el-tabs v-model="activeTab" class="settings-tabs" type="card" aria-label="设置分区">
+    <el-tab-pane label="配置修改" name="config">
   <el-card class="panel-card" shadow="never">
     <el-table v-loading="loading" :data="settings" empty-text="暂无可用配置">
       <el-table-column prop="label" label="配置项" min-width="220" />
@@ -43,4 +45,9 @@ onMounted(load)
       <el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.editable" type="primary" size="small" :loading="savingKey === row.key" @click="save(row)">保存</el-button><span v-else class="muted">—</span></template></el-table-column>
     </el-table>
   </el-card>
+    </el-tab-pane>
+    <el-tab-pane label="密码修改" name="account">
+      <AdminAccount />
+    </el-tab-pane>
+  </el-tabs>
 </template>

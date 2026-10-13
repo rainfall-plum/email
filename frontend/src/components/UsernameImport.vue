@@ -59,10 +59,11 @@ function poolCount(reason: string) { return result.value?.rejected_usernames.fil
 <template>
   <el-button @click="open">上传用户名 JSON</el-button>
   <el-dialog v-model="visible" title="上传用户名 JSON" width="min(760px, calc(100vw - 32px))" :close-on-click-modal="!busy && !checking" :close-on-press-escape="!busy && !checking" :show-close="!busy && !checking" :before-close="(done: () => void) => { if (!busy && !checking) done() }">
-    <p id="import-rules">文件仅包含 <code>usernames</code> 字段（用户名字符串数组）。最多 1000 个用户名，文件不超过 1 MiB，使用 UTF-8 编码。用户名长度 1–64 位，只允许小写字母和数字，不能含空格。域名由系统配置决定。</p>
-    <h3>JSON 格式示例</h3><pre class="json-example" aria-label="JSON 格式示例">{{ IMPORT_EXAMPLE }}</pre>
-    <el-button @click="download">下载示例 JSON 文件</el-button>
-    <div class="import-file-row"><label for="username-json-file">选择 JSON 文件</label><input id="username-json-file" ref="input" type="file" accept=".json,application/json" :disabled="busy || checking" aria-describedby="import-rules" @change="choose" /><span v-if="file" class="muted">已选择：{{ file.name }}</span></div>
+    <div class="import-modal-content">
+      <p id="import-rules" class="import-intro">文件仅包含 <code>usernames</code> 字段（用户名字符串数组）。最多 1000 个用户名，文件不超过 1 MiB，使用 UTF-8 编码。用户名长度 1–64 位，只允许小写字母和数字，不能含空格。域名由系统配置决定。</p>
+      <section class="import-section"><h3>JSON 格式示例</h3><pre class="json-example" aria-label="JSON 格式示例">{{ IMPORT_EXAMPLE }}</pre><el-button @click="download">下载示例 JSON 文件</el-button></section>
+      <section class="import-section"><h3>选择文件</h3><div class="import-file-row"><label for="username-json-file">选择 JSON 文件</label><input id="username-json-file" ref="input" type="file" accept=".json,application/json" :disabled="busy || checking" aria-describedby="import-rules" @change="choose" /><span v-if="file" class="muted">已选择：{{ file.name }}</span><span v-else class="muted">支持 UTF-8 编码的 JSON 文件</span></div></section>
+    </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
     <el-alert v-if="warning" :title="warning" type="warning" :closable="false" role="status" />
     <p v-if="checking" role="status">正在校验 JSON 文件…</p>
