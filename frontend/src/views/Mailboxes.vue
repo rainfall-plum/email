@@ -49,6 +49,10 @@ function onTagsChange() { if (filters.tag_ids.length) filters.untagged = false; 
 function onUntaggedChange() { if (filters.untagged) filters.tag_ids = []; resetPageAndLoad() }
 function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.name || `#${id}` }
 function openMailbox(id: number) { router.push(`/mailboxes/${id}`) }
+async function copyAddress(address: string) {
+  try { await navigator.clipboard.writeText(address); ElMessage.success('邮箱地址已复制') }
+  catch { ElMessage.error('复制失败，请检查浏览器权限') }
+}
 function validateCreate() {
   const localPart = form.local_part.trim()
   if (!/^[a-z0-9]+$/.test(localPart)) { ElMessage.warning('邮箱前缀只允许小写字母和数字'); return false }
@@ -110,15 +114,14 @@ onMounted(load)
   </el-card>
   <el-card class="panel-card" shadow="never">
     <el-table v-loading="loading" :data="mailboxes" stripe empty-text="没有符合条件的邮箱">
-      <el-table-column label="邮箱地址" min-width="250"><template #default="{ row }"><el-link type="primary" class="mailbox-link" @click="openMailbox(row.id)">{{ row.email_address }}</el-link></template></el-table-column>
-      <el-table-column prop="display_name" label="显示名称" min-width="130" show-overflow-tooltip />
+      <el-table-column label="邮箱地址" min-width="300"><template #default="{ row }"><el-link type="primary" class="mailbox-link" :aria-label="`复制邮箱地址 ${row.email_address}`" @click.stop="copyAddress(row.email_address)">{{ row.email_address }}</el-link></template></el-table-column>
       <el-table-column label="标签" min-width="180"><template #default="{ row }"><el-tag v-for="id in row.tag_ids" :key="id" size="small" class="table-tag">{{ tagName(id) }}</el-tag><span v-if="row.tag_ids.length === 0" class="muted">无</span></template></el-table-column>
       <el-table-column label="邮件" width="120"><template #default="{ row }">{{ row.email_count }} 封<span v-if="row.unread_count" class="unread-count"> · {{ row.unread_count }} 未读</span></template></el-table-column>
       <el-table-column label="最新邮件" min-width="170"><template #default="{ row }">{{ formatDate(row.latest_email_at) }}</template></el-table-column>
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="190" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openMailbox(row.id)">查看邮件</el-button><el-button link type="danger" :loading="deleteLoadingId === row.id" @click="remove(row)">删除</el-button></template></el-table-column>
+      <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openMailbox(row.id)">查看邮件</el-button></template></el-table-column>
     </el-table>
-    <div class="table-footer"><span class="muted">共 {{ total }} 个邮箱</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" layout="sizes, prev, pager, next" @size-change="onPageSizeChange" @current-change="onPageChange" /></div>
+    <div class="table-footer"><span class="muted">共 {{ total }} 个邮箱</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" layout="sizes, prev, pager, next" prev-text="上一页" next-text="下一页" @size-change="onPageSizeChange" @current-change="onPageChange" /></div>
   </el-card>
   <el-dialog v-model="createVisible" title="创建邮箱" :width="dialogWidth" :close-on-click-modal="!createLoading" :close-on-press-escape="!createLoading" :show-close="!createLoading"><el-form label-position="top" :model="form" :disabled="createLoading" @submit.prevent="create"><el-form-item label="邮箱前缀" required><el-input v-model="form.local_part" maxlength="64" placeholder="只允许小写字母和数字" /></el-form-item><el-form-item label="显示名称"><el-input v-model="form.display_name" maxlength="120" /></el-form-item><el-form-item label="标签"><el-select v-model="form.tag_ids" multiple style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item><div class="dialog-form-submit"><el-button :disabled="createLoading" @click="createVisible = false">取消</el-button><el-button type="primary" native-type="submit" :loading="createLoading">创建</el-button></div></el-form></el-dialog>
   <el-dialog v-model="batchVisible" title="批量生成邮箱" :width="dialogWidth" :close-on-click-modal="!batchLoading" :close-on-press-escape="!batchLoading" :show-close="!batchLoading"><el-form label-position="top" :disabled="batchLoading" @submit.prevent="batch"><p class="muted">系统将从 JSON 名字库生成邮箱，单次最多生成 1000 个。</p><el-form-item label="生成数量"><el-input-number v-model="count" :min="1" :max="1000" /></el-form-item><el-form-item label="统一标签"><el-select v-model="batchTagIds" multiple filterable clearable placeholder="可选" style="width: 100%"><el-option v-for="tag in tags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item><div class="dialog-form-submit"><el-button :disabled="batchLoading" @click="batchVisible = false">取消</el-button><el-button type="primary" native-type="submit" :loading="batchLoading">开始生成</el-button></div></el-form></el-dialog>

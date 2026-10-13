@@ -11,13 +11,14 @@ const loading = ref(false)
 const creating = ref(false)
 const renamingId = ref<number | null>(null)
 const deletingId = ref<number | null>(null)
+const createVisible = ref(false)
 
 async function load() { loading.value = true; try { tags.value = await tagApi.list() } catch (error) { if (!isAuthFailure(error)) ElMessage.error('标签加载失败，请稍后重试') } finally { loading.value = false } }
 async function create() {
   if (creating.value) return
   if (!name.value.trim()) { ElMessage.warning('请输入标签名称'); return }
   creating.value = true
-  try { await tagApi.create(name.value.trim()); name.value = ''; ElMessage.success('标签已创建'); await load() }
+  try { await tagApi.create(name.value.trim()); name.value = ''; createVisible.value = false; ElMessage.success('标签已创建'); await load() }
   catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '标签创建失败')) }
   finally { creating.value = false }
 }
@@ -45,6 +46,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="page-heading"><div><h1>标签管理</h1><p>用标签整理接收邮箱；标签 ID 稳定，名称可以安全修改。</p></div><el-button :loading="loading" @click="load">刷新</el-button></div>
-  <el-card class="panel-card" shadow="never"><el-form class="inline-form" @submit.prevent="create"><el-form-item label="新标签名称"><el-input v-model="name" aria-label="新标签名称" placeholder="新标签名称" /></el-form-item><el-form-item><el-button type="primary" :loading="creating" native-type="submit">添加标签</el-button></el-form-item></el-form><el-divider /><el-table v-loading="loading" :data="tags" empty-text="暂无标签"><el-table-column prop="name" label="标签名称" min-width="220" /><el-table-column prop="id" label="稳定 ID" width="110" /><el-table-column label="操作" width="180"><template #default="{ row }"><el-button link type="primary" :loading="renamingId === row.id" :disabled="deletingId === row.id" @click="rename(row)">修改</el-button><el-button link type="danger" :loading="deletingId === row.id" :disabled="renamingId === row.id" @click="remove(row)">删除</el-button></template></el-table-column></el-table></el-card>
+  <div class="page-heading"><div><h1>标签管理</h1><p>用标签整理接收邮箱；名称可以安全修改。</p></div><div class="page-actions"><el-button :loading="loading" @click="load">刷新</el-button><el-button type="primary" @click="createVisible = true">增加标签</el-button></div></div>
+  <el-card class="panel-card" shadow="never"><div v-loading="loading" class="tag-grid"><div v-for="tag in tags" :key="tag.id" class="tag-management-card"><div class="tag-management-name">{{ tag.name }}</div><div class="muted">{{ tag.mailbox_count ?? 0 }} 个关联邮箱</div><div class="tag-management-actions"><el-button size="small" :loading="renamingId === tag.id" :disabled="deletingId !== null" @click="rename(tag)">修改</el-button><el-button size="small" type="danger" plain :loading="deletingId === tag.id" :disabled="renamingId !== null" @click="remove(tag)">删除</el-button></div></div><el-empty v-if="!tags.length" description="暂无标签，先创建一个标签" /></div></el-card>
+  <el-dialog v-model="createVisible" title="增加标签" width="min(420px, calc(100vw - 32px))"><el-form @submit.prevent="create"><el-form-item label="标签名称" required><el-input v-model="name" maxlength="64" autofocus /></el-form-item><div class="dialog-form-submit"><el-button @click="createVisible = false">取消</el-button><el-button type="primary" native-type="submit" :loading="creating">创建</el-button></div></el-form></el-dialog>
 </template>

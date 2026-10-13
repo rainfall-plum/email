@@ -15,7 +15,10 @@ tag_logger = get_logger("tags")
 
 @router.get("", response_model=list[TagResponse])
 def get_tags(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
-    return list(db.scalars(select(Tag).order_by(Tag.name)))
+    tags = list(db.scalars(select(Tag).order_by(Tag.name)))
+    for tag in tags:
+        tag.mailbox_count = len(tag.mailboxes)  # type: ignore[attr-defined]
+    return tags
 
 
 @router.post("", response_model=TagResponse, status_code=status.HTTP_201_CREATED)

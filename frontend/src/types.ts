@@ -61,6 +61,7 @@ export interface Attachment {
 export interface Tag {
   id: number
   name: string
+  mailbox_count?: number
 }
 
 export type OutboundStatus = 'queued' | 'sending' | 'sent' | 'retrying' | 'failed'

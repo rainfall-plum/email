@@ -14,13 +14,15 @@ const status = ref('all'); const sort = ref('created_desc'); const loading = ref
 const selected = ref<OutboundEmail | null>(null); const dialog = ref(false); const detailLoading = ref(false); const detailError = ref(false)
 const detailId = ref<number | null>(null); const retrying = ref<number | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined; let generation = 0
-async function load() {
+function sameRows(a: OutboundEmail[], b: OutboundEmail[], totalA: number, totalB: number) { return totalA === totalB && a.length === b.length && a.every((row, i) => { const next = b[i]; return next && row.id === next.id && row.updated_at === next.updated_at && row.status === next.status && row.attempt_count === next.attempt_count && row.last_error === next.last_error && row.next_attempt_at === next.next_attempt_at }) }
+async function load(background = false) {
   const request = ++generation
-  loading.value = true
+  if (!background) loading.value = true
   try {
     const data = await outboundApi.list({ page: page.value, page_size: pageSize.value, status: status.value === 'all' ? undefined : status.value, sort: sort.value })
     if (request !== generation) return
-    rows.value = data.items; total.value = data.total; error.value = false
+    if (!sameRows(rows.value, data.items, total.value, data.total)) { rows.value = data.items; total.value = data.total }
+    error.value = false
   } catch { if (request === generation) error.value = true } finally { if (request === generation) loading.value = false }
 }
 function filter() { page.value = 1; load() }
@@ -38,7 +40,7 @@ async function retry(row: OutboundEmail) {
     if (dialog.value && detailId.value === row.id) await details(row.id)
   } catch (e) { if (!isAuthFailure(e)) ElMessage.error(getApiErrorMessage(e, '重试失败，请刷新记录后重试')) } finally { retrying.value = null }
 }
-onMounted(() => { load(); timer = setInterval(() => { if (!loading.value && !document.hidden && !dialog.value) load() }, 5000) })
+onMounted(() => { load(); timer = setInterval(() => { if (!loading.value && !document.hidden && !dialog.value) void load(true) }, 5000) })
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 
@@ -58,7 +60,7 @@ onBeforeUnmount(() => { generation++; clearInterval(timer) })
       <el-table-column prop="last_error" label="失败原因" min-width="220" show-overflow-tooltip />
       <el-table-column label="操作" width="155" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="details(row.id)">详情</el-button><el-button v-if="row.status === 'failed'" link type="warning" :loading="retrying === row.id" :disabled="retrying !== null || row.attempt_count >= row.max_attempts" :title="row.attempt_count >= row.max_attempts ? '已达到5次上限' : '重新尝试发送'" @click="retry(row)">重试</el-button></template></el-table-column>
     </el-table>
-    <div class="table-footer"><span class="muted">共 {{ total }} 封 · 每5秒自动刷新</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" layout="sizes, prev, pager, next" @current-change="load" @size-change="filter" /></div>
+    <div class="table-footer"><span class="muted">共 {{ total }} 封 · 每5秒检查状态</span><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" layout="sizes, prev, pager, next" prev-text="上一页" next-text="下一页" @current-change="load" @size-change="filter" /></div>
   </el-card>
   <el-dialog v-model="dialog" title="发送详情" width="min(760px, 94vw)">
     <div v-loading="detailLoading">

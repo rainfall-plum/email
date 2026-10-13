@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from email import policy
 from email.parser import BytesParser
 from email.utils import getaddresses, parsedate_to_datetime
+from html.parser import HTMLParser
+import re
 
 from app.config.logging import get_logger
 
@@ -66,7 +68,31 @@ def _part_content(part) -> str:
         payload = part.get_payload(decode=True)
         if payload is None:
             return ""
-        return payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        charset = part.get_content_charset() or "utf-8"
+        try:
+            return payload.decode(charset, errors="replace")
+        except LookupError:
+            return payload.decode("utf-8", errors="replace")
+
+
+class _TextExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.skip = 0
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag.lower() in {"script", "style", "noscript"}: self.skip += 1
+        elif tag.lower() in {"br", "p", "div", "li", "tr"}: self.parts.append("\n")
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in {"script", "style", "noscript"} and self.skip: self.skip -= 1
+    def handle_data(self, data: str) -> None:
+        if not self.skip: self.parts.append(data)
+
+
+def _html_to_text(value: str) -> str:
+    parser = _TextExtractor()
+    parser.feed(value)
+    return re.sub(r"\n{3,}", "\n\n", re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", "".join(parser.parts))).strip()
 
 
 def parse_email(raw_message: bytes) -> ParsedMail:
@@ -110,6 +136,10 @@ def parse_email(raw_message: bytes) -> ParsedMail:
             elif content_type == "text/html" and body_html is None:
                 body_html = _part_content(part)
 
+        if not body_text and body_html:
+            body_text = _html_to_text(body_html) or None
+        if body_text:
+            body_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", body_text).strip() or None
         parsed = ParsedMail(
             sender=sender,
             receiver=receiver,

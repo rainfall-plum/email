@@ -65,3 +65,4 @@ class TagResponse(BaseModel):
 
     id: int
     name: str
+    mailbox_count: int = 0
