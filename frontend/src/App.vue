@@ -11,7 +11,7 @@ import { LOGIN_MESSAGES, synchronizeSession, type LoginReason } from './utils/se
 const route = useRoute()
 const router = useRouter()
 const isLogin = computed(() => route.path === '/login')
-const activeMenu = computed(() => route.path.startsWith('/outbound') ? '/outbound' : route.path.startsWith('/mailboxes') || route.path.startsWith('/emails') ? '/mailboxes' : route.path)
+const activeMenu = computed(() => route.path === '/outbound/new' ? '/outbound/new' : route.path.startsWith('/outbound') ? '/outbound' : route.path.startsWith('/mailboxes') || route.path.startsWith('/emails') ? '/mailboxes' : route.path)
 const mobileNavOpen = ref(false)
 watch(() => route.path, () => { mobileNavOpen.value = false })
 watch(() => route.fullPath, () => { void nextTick(() => document.getElementById('main-content')?.focus()) })
@@ -36,18 +36,19 @@ onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleA
   <el-container v-else class="app-shell">
     <a class="skip-link" href="#main-content">跳转到主要内容</a>
     <el-aside width="224px" :class="['side-panel', { 'is-mobile-open': mobileNavOpen }]" :aria-hidden="!mobileNavOpen && undefined">
-      <div class="brand" aria-label="Mailbox 管理平台"><img src="/favicon.png" alt="" class="brand-icon" />MAIL<span>BOX</span></div>
+      <div class="brand" aria-label="Mailbox 管理平台">MAIL<span>BOX</span></div>
       <div class="brand-caption">管理员邮箱接收平台 · 内容与数据</div>
       <el-menu :default-active="activeMenu" router class="main-menu" aria-label="主导航" @select="mobileNavOpen = false">
-        <el-menu-item index="/outbound" aria-label="发送记录" title="发送记录"><el-icon><Promotion /></el-icon><span class="menu-label">发送记录</span></el-menu-item>
         <el-menu-item index="/dashboard" aria-label="运行概览" title="运行概览"><el-icon><HomeFilled /></el-icon><span class="menu-label">Dashboard</span></el-menu-item>
+        <el-menu-item index="/outbound/new" aria-label="发送邮箱" title="发送邮箱"><el-icon><Promotion /></el-icon><span class="menu-label">发送邮箱</span></el-menu-item>
+        <el-menu-item index="/outbound" aria-label="发送记录" title="发送记录"><el-icon><Promotion /></el-icon><span class="menu-label">发送记录</span></el-menu-item>
         <el-menu-item index="/mailboxes" aria-label="邮箱管理" title="邮箱管理"><el-icon><MessageBox /></el-icon><span class="menu-label">邮箱管理</span></el-menu-item>
         <el-menu-item index="/tags" aria-label="标签管理" title="标签管理"><el-icon><PriceTag /></el-icon><span class="menu-label">标签管理</span></el-menu-item>
         <el-menu-item index="/settings" aria-label="系统设置" title="系统设置"><el-icon><Setting /></el-icon><span class="menu-label">系统设置</span></el-menu-item>
       </el-menu>
       <div class="side-footer">
         <el-button text class="logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></el-button>
-        <span>单域名 · 邮件管理</span>
+        <span>邮箱管理</span>
       </div>
     </el-aside>
     <el-container>

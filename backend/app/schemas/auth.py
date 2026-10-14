@@ -36,3 +36,11 @@ class CredentialsRequest(BaseModel):
 class CredentialsResponse(BaseModel):
     code: str = "ADMIN_CREDENTIALS_CHANGED"
     message: str = "管理员信息已修改，请使用新用户名和密码登录"
+
+
+class VerifyPasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128, repr=False)
+
+
+class VerifyPasswordResponse(BaseModel):
+    valid: bool = True

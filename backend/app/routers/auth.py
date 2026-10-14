@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config.logging import get_logger
 from app.database.session import get_db
 from app.models import AdminUser
-from app.schemas.auth import AdminResponse, CredentialsRequest, CredentialsResponse, LoginRequest, TokenResponse
+from app.schemas.auth import AdminResponse, CredentialsRequest, CredentialsResponse, LoginRequest, TokenResponse, VerifyPasswordRequest, VerifyPasswordResponse
 from app.services.admin_service import CredentialsError, change_credentials
 from app.utils.security import create_access_token, decode_access_token, verify_password
 
@@ -68,6 +68,13 @@ def get_current_admin(
 @router.get("/admin/profile", response_model=AdminResponse)
 def current_admin(admin: AdminUser = Depends(get_current_admin)) -> AdminResponse:
     return AdminResponse(id=admin.id, username=admin.username)
+
+
+@router.post("/admin/verify-password", response_model=VerifyPasswordResponse)
+def verify_admin_password(payload: VerifyPasswordRequest, admin: AdminUser = Depends(get_current_admin)) -> VerifyPasswordResponse:
+    if not verify_password(payload.current_password, admin.password_hash):
+        raise HTTPException(status_code=400, detail={"code": "CURRENT_PASSWORD_INCORRECT", "message": "当前密码错误"})
+    return VerifyPasswordResponse()
 
 
 @router.patch("/admin/credentials", response_model=CredentialsResponse)

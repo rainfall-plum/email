@@ -3,67 +3,18 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminApi, getApiErrorMessage } from '../api'
 import { clearSession, isAuthFailure } from '../utils/session'
-
-const username = ref('')
-const loading = ref(false)
-const saving = ref(false)
-const failed = ref(false)
-const changePassword = ref(false)
-const form = reactive({ new_username: '', current_password: '', new_password: '', confirm_new_password: '' })
-const errors = reactive({ new_username: '', current_password: '', new_password: '', confirm_new_password: '' })
-function reset() {
-  form.new_username = username.value; form.current_password = ''; form.new_password = ''; form.confirm_new_password = ''
-  changePassword.value = false
-  Object.keys(errors).forEach(key => { errors[key as keyof typeof errors] = '' })
-}
-async function load() {
-  if (loading.value) return
-  loading.value = true; failed.value = false
-  try { username.value = (await adminApi.profile()).username; reset() }
-  catch { failed.value = true }
-  finally { loading.value = false }
-}
-function validate() {
-  errors.current_password = form.current_password ? '' : '请输入当前密码'
-  errors.new_username = /^[A-Za-z][A-Za-z0-9_]{2,63}$/.test(form.new_username) ? '' : '用户名须为 3–64 位，以字母开头，仅含字母、数字和下划线'
-  errors.new_password = changePassword.value && (form.new_password.length < 4 || form.new_password.length > 128) ? '新密码须为 4–128 个字符' : ''
-  errors.confirm_new_password = changePassword.value && form.new_password !== form.confirm_new_password ? '两次输入的新密码不一致' : ''
-  if (Object.values(errors).some(Boolean)) return false
-  if (form.new_username === username.value && !changePassword.value) { ElMessage.warning('请修改用户名或启用修改密码'); return false }
-  return true
-}
-async function save() {
-  if (saving.value || !validate()) return
-  saving.value = true
-  try {
-    try { await ElMessageBox.confirm('修改管理员凭据后，所有已登录会话都会立即失效，需要使用新信息重新登录。确定继续吗？', '确认修改管理员信息', { confirmButtonText: '确认修改', cancelButtonText: '取消', type: 'warning' }) }
-    catch { return }
-    await adminApi.credentials({ current_password: form.current_password, ...(form.new_username !== username.value ? { new_username: form.new_username } : {}), ...(changePassword.value ? { new_password: form.new_password, confirm_new_password: form.confirm_new_password } : {}) })
-    reset()
-    clearSession('changed')
-  } catch (cause) { if (!isAuthFailure(cause)) ElMessage.error(getApiErrorMessage(cause, '管理员信息修改失败，请检查当前密码和输入内容后重试')) }
-  finally { saving.value = false; form.current_password = ''; form.new_password = ''; form.confirm_new_password = '' }
-}
+const username = ref(''); const loading = ref(false); const failed = ref(false); const verifyVisible = ref(false); const editVisible = ref(false); const verifyLoading = ref(false); const saving = ref(false); const verifyPassword = ref(''); const verifiedPassword = ref(''); const verifyError = ref('')
+const errors = reactive({ new_username: '', new_password: '' }); const form = reactive({ new_username: '', new_password: '' })
+function clearEdit() { editVisible.value = false; verifiedPassword.value = ''; form.new_username = username.value; form.new_password = ''; errors.new_username = ''; errors.new_password = '' }
+async function load() { if (loading.value) return; loading.value = true; failed.value = false; try { username.value = (await adminApi.profile()).username; clearEdit() } catch { failed.value = true } finally { loading.value = false } }
+function openVerify() { verifyPassword.value = ''; verifyError.value = ''; verifyVisible.value = true }
+async function verify() { if (verifyLoading.value || !verifyPassword.value) { verifyError.value = '请输入当前密码'; return }; verifyLoading.value = true; verifyError.value = ''; try { await adminApi.verifyPassword(verifyPassword.value); verifiedPassword.value = verifyPassword.value; verifyVisible.value = false; editVisible.value = true; form.new_username = username.value } catch (error) { if (!isAuthFailure(error)) verifyError.value = getApiErrorMessage(error, '当前密码不正确') } finally { verifyLoading.value = false; verifyPassword.value = '' } }
+function validate() { errors.new_username = /^[A-Za-z][A-Za-z0-9_]{2,63}$/.test(form.new_username) ? '' : '管理员名称须为 3–64 位，以字母开头，仅含字母、数字和下划线'; errors.new_password = form.new_password && (form.new_password.length < 4 || form.new_password.length > 128) ? '新密码须为 4–128 个字符' : ''; if (Object.values(errors).some(Boolean)) return false; if (form.new_username === username.value && !form.new_password) { ElMessage.warning('请至少修改管理员名称或密码'); return false }; return true }
+async function save() { if (saving.value || !validate()) return; if (!verifiedPassword.value) { clearEdit(); return }; if (form.new_password) { let confirmation: { value: string }; try { confirmation = await ElMessageBox.prompt('请再次输入新密码，确认两次输入一致。', '确认新密码', { inputType: 'password', confirmButtonText: '确认修改', cancelButtonText: '取消', closeOnClickModal: true }) } catch { return }; if (confirmation.value !== form.new_password) { ElMessage.error('两次输入的密码不一致，请重新输入或取消修改'); return } }; saving.value = true; try { await adminApi.credentials({ current_password: verifiedPassword.value, ...(form.new_username !== username.value ? { new_username: form.new_username } : {}), ...(form.new_password ? { new_password: form.new_password, confirm_new_password: form.new_password } : {}) }); ElMessage.success('管理员信息已修改，请重新登录'); clearEdit(); clearSession('changed') } catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '管理员信息修改失败，请稍后重试')) } finally { saving.value = false; verifiedPassword.value = ''; form.new_password = '' } }
 onMounted(load)
 </script>
-
 <template>
-  <el-card class="panel-card account-card" shadow="never" v-loading="loading">
-    <template #header><div><strong>管理员账户</strong><p class="muted">修改用户名或密码后，所有已登录会话立即失效。</p></div></template>
-    <el-result v-if="failed" icon="error" title="管理员信息加载失败"><template #extra><el-button @click="load">重新加载账户</el-button></template></el-result>
-    <template v-else>
-      <p>当前管理员用户名：<strong>{{ username || '加载中' }}</strong></p>
-      <el-form class="account-form" label-position="top" :disabled="saving || loading" @submit.prevent="save">
-        <el-form-item label="新用户名" :error="errors.new_username"><el-input v-model="form.new_username" autocomplete="username" maxlength="64" aria-describedby="admin-name-rule" /><span id="admin-name-rule" class="muted">3–64 位，以字母开头，仅含字母、数字和下划线；保持原值可只修改密码。</span></el-form-item>
-        <el-form-item label="当前密码" required :error="errors.current_password"><el-input v-model="form.current_password" type="password" show-password autocomplete="current-password" maxlength="128" /></el-form-item>
-        <el-checkbox v-model="changePassword">修改密码</el-checkbox>
-        <div v-if="changePassword" class="password-fields">
-          <p id="admin-password-rule" class="muted">新密码须为 4–128 个字符。建议使用不易猜测的长密码，避免重复使用其他网站的密码。</p>
-          <el-form-item label="新密码" required :error="errors.new_password"><el-input v-model="form.new_password" type="password" show-password autocomplete="new-password" maxlength="128" aria-describedby="admin-password-rule" /></el-form-item>
-          <el-form-item label="确认新密码" required :error="errors.confirm_new_password"><el-input v-model="form.confirm_new_password" type="password" show-password autocomplete="new-password" maxlength="128" /></el-form-item>
-        </div>
-        <div class="account-actions"><el-button type="primary" :loading="saving" native-type="submit">保存管理员信息</el-button><el-button :disabled="saving" @click="reset">取消</el-button></div>
-      </el-form>
-    </template>
-  </el-card>
+  <el-card class="panel-card account-card" shadow="never" v-loading="loading"><template #header><div><strong>管理员信息</strong><p class="muted">先验证当前密码，再修改管理员名称或密码。</p></div></template><el-result v-if="failed" icon="error" title="管理员信息加载失败"><template #extra><el-button @click="load">重新加载</el-button></template></el-result><template v-else><div class="current-admin"><span class="muted">当前管理员名称</span><strong>{{ username || '加载中' }}</strong></div><el-button type="primary" :loading="verifyLoading" @click="openVerify">修改管理员信息</el-button></template></el-card>
+  <el-dialog v-model="verifyVisible" title="验证当前密码" width="min(420px, calc(100vw - 32px))" :close-on-click-modal="true" @closed="verifyPassword = ''; verifyError = ''"><el-form @submit.prevent="verify"><el-form-item label="当前密码" :error="verifyError"><el-input v-model="verifyPassword" type="password" show-password autocomplete="current-password" autofocus @keyup.enter="verify" /></el-form-item><div class="dialog-form-submit"><el-button @click="verifyVisible = false">关闭</el-button><el-button type="primary" :loading="verifyLoading" native-type="submit">继续</el-button></div></el-form></el-dialog>
+  <el-dialog v-model="editVisible" title="修改管理员信息" width="min(520px, calc(100vw - 32px))" :close-on-click-modal="false" :close-on-press-escape="!saving" :show-close="!saving" @closed="clearEdit"><el-form class="account-form" label-position="top" :disabled="saving" @submit.prevent="save"><div class="current-admin edit-current"><span class="muted">当前管理员名称</span><strong>{{ username }}</strong></div><el-form-item label="管理员名称" :error="errors.new_username"><el-input v-model="form.new_username" autocomplete="username" maxlength="64" /></el-form-item><el-form-item label="新密码" :error="errors.new_password"><el-input v-model="form.new_password" type="password" show-password autocomplete="new-password" placeholder="留空表示不修改密码" /></el-form-item><p class="muted">填写新密码后，点击修改管理员信息会再次要求输入新密码确认。</p><div class="dialog-form-submit"><el-button :disabled="saving" @click="clearEdit">取消修改</el-button><el-button type="primary" :loading="saving" native-type="submit">修改管理员信息</el-button></div></el-form></el-dialog>
 </template>

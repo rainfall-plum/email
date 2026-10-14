@@ -70,6 +70,7 @@ export const authApi = {
 
 export const adminApi = {
   async profile() { return (await api.get<{ id: number; username: string }>('/admin/profile')).data },
+  async verifyPassword(current_password: string) { return (await api.post<{ valid: boolean }>('/admin/verify-password', { current_password })).data },
   async credentials(payload: { current_password: string; new_username?: string; new_password?: string; confirm_new_password?: string }) {
     return (await api.patch<{ code: string }>('/admin/credentials', payload)).data
   },
