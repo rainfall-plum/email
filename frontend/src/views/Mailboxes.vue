@@ -26,6 +26,14 @@ const pageSize = ref(20)
 const total = ref(0)
 const filters = reactive({ tag_ids: [] as number[], tag_mode: 'any' as 'any' | 'all', sort_by: 'oldest_email_asc' })
 
+const mailboxListStateKey = 'mailbox-list-state'
+try {
+  const saved = JSON.parse(sessionStorage.getItem(mailboxListStateKey) || '{}') as { page?: number; pageSize?: number }
+  if (Number.isInteger(saved.page) && saved.page! > 0) page.value = saved.page!
+  if ([20, 50, 100].includes(saved.pageSize || 0)) pageSize.value = saved.pageSize!
+} catch { /* ignore malformed session state */ }
+function persistListState() { sessionStorage.setItem(mailboxListStateKey, JSON.stringify({ page: page.value, pageSize: pageSize.value })) }
+
 const dialogWidth = 'min(500px, calc(100vw - 32px))'
 let loadSequence = 0
 
@@ -38,13 +46,13 @@ async function load() {
       tagApi.list(),
     ])
     if (sequence !== loadSequence) return
-    if (page.value > Math.max(1, result.pages)) { page.value = Math.max(1, result.pages); void load(); return }
+    if (page.value > Math.max(1, result.pages)) { page.value = Math.max(1, result.pages); persistListState(); void load(); return }
     mailboxes.value = result.items
     total.value = result.total
     tags.value = tagData
   } catch (error) { if (sequence === loadSequence && !isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
 }
-function resetPageAndLoad() { page.value = 1; void load() }
+function resetPageAndLoad() { page.value = 1; persistListState(); void load() }
 function toggleTag(ids: number[], id: number, refresh = true) { const index = ids.indexOf(id); if (index >= 0) ids.splice(index, 1); else ids.push(id); if (refresh) resetPageAndLoad() }
 function tagName(id: number) { return tags.value.find((tag) => tag.id === id)?.name || `#${id}` }
 function openMailbox(value: Mailbox | number) { router.push(`/mailboxes/${typeof value === 'number' ? value : value.id}`) }
@@ -78,7 +86,7 @@ async function batch() {
     const result = await mailboxApi.batch(count.value, batchTagIds.value)
     ElMessage.success(`成功生成 ${result.mailboxes.length} 个邮箱`)
     batchVisible.value = false; batchTagIds.value = []
-    page.value = 1
+    page.value = 1; persistListState()
     await load()
   } catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '批量生成失败')) }
   finally { batchLoading.value = false }
@@ -92,8 +100,8 @@ async function remove(mailbox: Mailbox) {
   catch (error) { if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '删除失败，请稍后重试')) }
   finally { deleteLoadingId.value = null }
 }
-function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; void load() }
-function onPageChange(nextPage: number) { page.value = nextPage; void load() }
+function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; persistListState(); void load() }
+function onPageChange(nextPage: number) { page.value = nextPage; persistListState(); void load() }
 onMounted(load)
 </script>
 
@@ -114,7 +122,7 @@ onMounted(load)
     <el-table v-loading="loading" :data="mailboxes" stripe empty-text="没有符合条件的邮箱" @row-click="openMailbox">
       <el-table-column label="邮箱地址" min-width="300"><template #default="{ row }"><el-link type="primary" class="mailbox-link" :aria-label="`复制邮箱地址 ${row.email_address}`" @click.stop="copyAddress(row.email_address)">{{ row.email_address }}</el-link></template></el-table-column>
       <el-table-column label="标签" min-width="180"><template #default="{ row }"><el-tag v-for="id in row.tag_ids" :key="id" size="small" class="table-tag">{{ tagName(id) }}</el-tag><span v-if="row.tag_ids.length === 0" class="muted">无</span></template></el-table-column>
-      <el-table-column label="邮件" width="120"><template #default="{ row }">{{ row.email_count }} 封<span v-if="row.unread_count" class="unread-count"> · {{ row.unread_count }} 未读</span></template></el-table-column>
+      <el-table-column label="邮件" width="120"><template #default="{ row }">{{ row.email_count }} 封<span v-if="row.unread_count" class="unread-count"> {{ row.unread_count }} 未读</span></template></el-table-column>
       <el-table-column label="最新邮件" min-width="170"><template #default="{ row }">{{ formatDate(row.latest_email_at) }}</template></el-table-column>
       <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openMailbox(row.id)">查看邮件</el-button></template></el-table-column>
