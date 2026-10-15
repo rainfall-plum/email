@@ -5,7 +5,7 @@ from app.database.base import Base, TimestampMixin
 
 
 class ImportUsername(TimestampMixin, Base):
-    """Complete imported usernames; deliberately separate from first/last names."""
+    """Usernames waiting in the import pool for a later batch generation."""
 
     __tablename__ = "import_usernames"
 
