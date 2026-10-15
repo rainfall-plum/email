@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.config.logging import get_logger
 from app.config.settings import Settings
 from app.models import ImportUsername, Mailbox, MailGenerationRecord
-from app.utils.name_library import NAME_LIBRARY_LOCK, NameLibrary
 
 MAX_IMPORT_BYTES = 1024 * 1024
 MAX_IMPORT_USERNAMES = 1000
@@ -65,31 +64,13 @@ def parse_username_file(filename: str | None, content: bytes) -> list:
     return usernames
 
 
-def _pool_matches(username: str, first: set[str], last: set[str]) -> bool:
-    # Used files deduplicate components independently, so historical pair order
-    # cannot be reconstructed. Check all possible splits without a cartesian set.
-    return username in first or username in last or any(
-        username[:index] in first and username[index:] in last
-        for index in range(1, len(username))
-    )
-
-
 def import_usernames(db: Session, settings: Settings, usernames: list, admin_id: int) -> dict:
     logger.info("Username import started actor_id=%s total=%s", admin_id, len(usernames))
     try:
-        library = NameLibrary(settings.names_dir)
-        with NAME_LIBRARY_LOCK:
-            available_first = library._read("available", "first", create_missing=False)
-            available_last = library._read("available", "last", create_missing=False)
-            used_first = set(library._read("used", "first", create_missing=False))
-            used_last = set(library._read("used", "last", create_missing=False))
-        available = set(available_first + available_last)
-        available.update(first + last for first, last in zip(available_first, available_last))
         candidates = {value for value in usernames if isinstance(value, str) and len(value) <= MAX_USERNAME_LENGTH}
         existing = set(db.scalars(select(Mailbox.local_part).where(Mailbox.local_part.in_(candidates))))
-        imported_used = set(db.scalars(select(ImportUsername.username).where(ImportUsername.username.in_(candidates))))
+        imported = set(db.scalars(select(ImportUsername.username).where(ImportUsername.username.in_(candidates))))
         seen: set[str] = set()
-        generated: list[Mailbox] = []
         rejected = []
         counts = {"duplicate_count": 0, "invalid_count": 0, "existing_count": 0}
         for username in usernames:
@@ -108,9 +89,7 @@ def import_usernames(db: Session, settings: Settings, usernames: list, admin_id:
                 seen.add(username)
                 if username in existing:
                     reason = "already_exists"
-                elif username in imported_used or _pool_matches(username, used_first, used_last):
-                    reason = "already_used"
-                elif username in available:
+                elif username in imported:
                     reason = "already_available"
             if reason:
                 # Return the submitted string only, never stringify nested objects.
@@ -120,13 +99,8 @@ def import_usernames(db: Session, settings: Settings, usernames: list, admin_id:
                     "duplicate_count" if reason == "duplicate_in_file" else "existing_count")
                 counts[category] += 1
                 continue
-            mailbox = Mailbox(local_part=username, email_address=f"{username}@{settings.allowed_domain}", created_source="import")
-            db.add(mailbox)
             db.add(ImportUsername(username=username))
-            generated.append(mailbox)
-        db.add(MailGenerationRecord(admin_user_id=admin_id, requested_count=len(usernames), generated_count=len(generated), source="import"))
-        db.flush()
-        created = [{"username": row.local_part, "email": row.email_address, "mailbox_id": row.id} for row in generated]
+        db.add(MailGenerationRecord(admin_user_id=admin_id, requested_count=len(usernames), generated_count=0, source="import_pool"))
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -134,8 +108,8 @@ def import_usernames(db: Session, settings: Settings, usernames: list, admin_id:
         if isinstance(exc, IntegrityError):
             raise UsernameImportError("import_conflict", "用户名发生并发冲突，本次导入已回滚，请重新上传", 409) from None
         raise UsernameImportError("import_failed", "导入失败，本次导入已回滚，请稍后重试", 500) from None
-    result = {"total": len(usernames), "success_count": len(created), **counts,
-              "created_mailboxes": created, "rejected_usernames": rejected}
-    logger.info("Username import finished actor_id=%s total=%s success=%s duplicate=%s invalid=%s existing=%s",
-                admin_id, len(usernames), len(created), counts["duplicate_count"], counts["invalid_count"], counts["existing_count"])
+    result = {"total": len(usernames), "success_count": len(usernames) - len(rejected), **counts,
+              "created_mailboxes": [], "rejected_usernames": rejected}
+    logger.info("Username import finished actor_id=%s total=%s added=%s duplicate=%s invalid=%s existing=%s",
+                admin_id, len(usernames), result["success_count"], counts["duplicate_count"], counts["invalid_count"], counts["existing_count"])
     return result

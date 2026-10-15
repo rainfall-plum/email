@@ -45,9 +45,9 @@ onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleA
         <el-menu-item index="/mailboxes" aria-label="邮箱管理" title="邮箱管理"><el-icon><MessageBox /></el-icon><span class="menu-label">邮箱管理</span></el-menu-item>
         <el-menu-item index="/tags" aria-label="标签管理" title="标签管理"><el-icon><PriceTag /></el-icon><span class="menu-label">标签管理</span></el-menu-item>
         <el-menu-item index="/settings" aria-label="系统设置" title="系统设置"><el-icon><Setting /></el-icon><span class="menu-label">系统设置</span></el-menu-item>
+        <button type="button" class="side-menu-action logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></button>
       </el-menu>
       <div class="side-footer">
-        <el-button text class="logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></el-button>
         <span>邮箱管理</span>
       </div>
     </el-aside>

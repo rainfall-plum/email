@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config.logging import get_logger
 from app.config.settings import Settings
-from app.models import Email, Mailbox, MailGenerationRecord, Tag
+from app.models import Email, ImportUsername, Mailbox, MailGenerationRecord, Tag
 from app.utils.name_library import NAME_LIBRARY_LOCK, NameLibrary, NameLibraryError
 
 mailbox_logger = get_logger("mailbox")
@@ -180,10 +180,26 @@ def _generate_mailboxes_locked(db: Session, settings: Settings, count: int, tag_
     library = NameLibrary(settings.names_dir)
     generated: list[Mailbox] = []
     used_locals = {value.lower() for value in db.scalars(select(Mailbox.local_part))}
-    snapshot = library.snapshot()
+    snapshot: dict[tuple[str, str], list[str]] = {}
     pools_consumed = False
     try:
-        pairs = library.reserve_pairs(count)
+        imported_rows = list(db.scalars(select(ImportUsername).order_by(ImportUsername.id).limit(count)))
+        imported_names = [row.username for row in imported_rows]
+        remaining = count - len(imported_names)
+        pairs = library.reserve_pairs(remaining) if remaining else []
+        if pairs:
+            snapshot = library.snapshot()
+        for username in imported_names:
+            local_part = username.lower()
+            suffix = 1
+            while local_part in used_locals:
+                local_part = f"{username}{suffix}"
+                suffix += 1
+            used_locals.add(local_part)
+            generated.append(Mailbox(email_address=_email_address(local_part, settings), local_part=local_part,
+                                     display_name=username.title(), created_source="import_pool", tags=list(tags)))
+        for row in imported_rows:
+            db.delete(row)
         for first, last in pairs:
             base = f"{first}{last}".lower()
             local_part = base
@@ -210,8 +226,9 @@ def _generate_mailboxes_locked(db: Session, settings: Settings, count: int, tag_
             )
         )
         db.flush()
-        library.consume_pairs(pairs)
-        pools_consumed = True
+        if pairs:
+            library.consume_pairs(pairs)
+            pools_consumed = True
         db.commit()
     except Exception as exc:
         db.rollback()

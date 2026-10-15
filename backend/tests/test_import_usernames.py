@@ -85,27 +85,23 @@ def test_import_statistics_uniqueness_domain_and_pool_compatibility(import_db):
     db.add(existing)
     db.commit()
     result = import_usernames(db, settings, ["lower", "123", "mail88", "lower", "alice", "alicewang", "old", "formername", "exists", "a.b"], admin.id)
-    assert (result["total"], result["success_count"], result["duplicate_count"], result["existing_count"], result["invalid_count"]) == (10, 3, 1, 5, 1)
-    assert all(row["email"].endswith("@example.test") for row in result["created_mailboxes"])
-    assert {row["reason"] for row in result["rejected_usernames"]} == {"duplicate_in_file", "already_available", "already_used", "already_exists", "invalid_format"}
-    assert db.query(Mailbox).count() == 4
-    assert db.query(ImportUsername).count() == 3
+    assert (result["total"], result["success_count"], result["duplicate_count"], result["existing_count"], result["invalid_count"]) == (10, 7, 1, 1, 1)
+    assert result["created_mailboxes"] == []
+    assert {row["reason"] for row in result["rejected_usernames"]} == {"duplicate_in_file", "already_exists", "invalid_format"}
+    assert db.query(Mailbox).count() == 1
+    assert db.query(ImportUsername).count() == 7
     repeated = import_usernames(db, settings, ["lower", "123", "mail88"], admin.id)
     assert repeated["success_count"] == 0 and repeated["existing_count"] == 3
     assert snapshots == {path.name: path.read_bytes() for path in settings.names_dir.iterdir()}
-    db.add(Mailbox(local_part="lower", email_address="different@example.test"))
-    with pytest.raises(IntegrityError):
-        db.commit()
-    db.rollback()
 
 
 def test_deleted_import_remains_used(import_db):
     db, settings, admin = import_db
-    import_usernames(db, settings, ["remainused"], admin.id)
-    db.delete(db.scalar(select(Mailbox).where(Mailbox.local_part == "remainused")))
-    db.commit()
     result = import_usernames(db, settings, ["remainused"], admin.id)
-    assert result["rejected_usernames"][0]["reason"] == "already_used"
+    assert result["success_count"] == 1
+    assert db.scalar(select(Mailbox).where(Mailbox.local_part == "remainused")) is None
+    result = import_usernames(db, settings, ["remainused"], admin.id)
+    assert result["rejected_usernames"][0]["reason"] == "already_available"
 
 
 def test_database_failure_rolls_back_mailbox_and_ledger(import_db, monkeypatch):
@@ -120,15 +116,26 @@ def test_database_failure_rolls_back_mailbox_and_ledger(import_db, monkeypatch):
     assert db.query(ImportUsername).count() == 0
 
 
-def test_pool_failure_creates_no_mailboxes(import_db, monkeypatch):
+def test_import_does_not_require_component_pool(import_db, monkeypatch):
     from app.utils.name_library import NameLibrary, NameLibraryError
     db, settings, admin = import_db
     def fail_read(*_, **kwargs):
         raise NameLibraryError("injected pool failure")
     monkeypatch.setattr(NameLibrary, "_read", fail_read)
-    with pytest.raises(UsernameImportError):
-        import_usernames(db, settings, ["firstnew"], admin.id)
+    assert import_usernames(db, settings, ["firstnew"], admin.id)["success_count"] == 1
     assert db.query(Mailbox).count() == 0
+
+
+def test_batch_generation_consumes_imported_username_pool(import_db):
+    from app.services.mailbox_service import generate_mailboxes
+
+    db, settings, admin = import_db
+    import_usernames(db, settings, ["customuser"], admin.id)
+    generated = generate_mailboxes(db, settings, 1, [])
+
+    assert [mailbox.local_part for mailbox in generated] == ["customuser"]
+    assert db.query(ImportUsername).count() == 0
+    assert db.query(Mailbox).filter(Mailbox.local_part == "customuser").count() == 1
 
 
 def test_import_does_not_update_component_pools(import_db, monkeypatch):

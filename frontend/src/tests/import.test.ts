@@ -43,7 +43,7 @@ describe('username upload component', () => {
     await open(); await choose(fixture('{"usernames":["alice","alice","bad.name","existing"]}'))
     expect(wrapper.text()).toContain('格式不合法'); await button('开始导入').trigger('click'); await flushPromises()
     expect(mailboxApi.importUsernames).toHaveBeenCalledTimes(1); expect(wrapper.emitted('imported')).toHaveLength(1)
-    expect(wrapper.text()).toContain('导入结果'); expect(wrapper.text()).toContain('duplicate_in_file'); expect(wrapper.text()).toContain('bad.name'); expect(wrapper.text()).toContain('alice@example.com')
+    expect(wrapper.text()).toContain('导入结果'); expect(wrapper.text()).toContain('duplicate_in_file'); expect(wrapper.text()).toContain('bad.name'); expect(wrapper.text()).toContain('批量生成时才会创建邮箱')
     await button('重新上传').trigger('click'); expect(wrapper.text()).not.toContain('导入结果'); expect(button('开始导入').attributes('disabled')).toBeDefined()
   })
   it('locks the upload while pending and prevents duplicate submissions', async () => {
@@ -56,7 +56,7 @@ describe('username upload component', () => {
   it('derives pool counters from each rejected item when aggregate optional fields are absent', async () => {
     vi.mocked(mailboxApi.importUsernames).mockResolvedValue({ ...result, total: 3, success_count: 0, duplicate_count: 0, invalid_count: 0, existing_count: 3, created_mailboxes: [], rejected_usernames: [{ username: 'alice', reason: 'already_available', message: '可用池已存在' }, { username: 'bob', reason: 'already_available', message: '可用池已存在' }, { username: 'carol', reason: 'already_used', message: '使用池已存在' }] })
     await open(); await choose(fixture(IMPORT_EXAMPLE)); await button('开始导入').trigger('click'); await flushPromises()
-    expect(wrapper.text()).toContain('已在可用池：2'); expect(wrapper.text()).toContain('已在使用池：1')
+    expect(wrapper.text()).toContain('已在用户名池：2')
   })
   it.each(['dark', 'white', 'paper', 'system'] as const)('keeps schema and accessible input in %s theme', async theme => { useTheme().setTheme(theme); await open(); expect(document.documentElement.dataset.theme).toBe(theme); expect(wrapper.find('input').attributes('aria-describedby')).toBe('import-rules'); expect(wrapper.text()).toContain('JSON 格式') })
 })

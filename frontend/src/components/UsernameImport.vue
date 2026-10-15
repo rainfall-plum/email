@@ -47,7 +47,7 @@ async function submit() {
   busy.value = true; error.value = ''; result.value = null
   try {
     result.value = await mailboxApi.importUsernames(file.value)
-    ElMessage.success(`导入完成，成功生成 ${result.value.success_count} 个邮箱`)
+    ElMessage.success(`已存入用户名池，新增 ${result.value.success_count} 个用户名；批量生成时才会创建邮箱`)
     emit('imported')
   } catch (cause) { if (!isAuthFailure(cause)) { error.value = getApiErrorMessage(cause, '导入失败，请检查文件并重试'); ElMessage.error(error.value) } }
   finally { busy.value = false }
@@ -70,9 +70,8 @@ function poolCount(reason: string) { return result.value?.rejected_usernames.fil
     <section v-if="result" class="import-result" aria-live="polite">
       <h3>导入结果</h3>
       <div class="import-stats"><span>总计 <strong>{{ result.total }}</strong></span><span>成功 <strong>{{ result.success_count }}</strong></span><span>重复 <strong>{{ result.duplicate_count }}</strong></span><span>已存在 <strong>{{ result.existing_count }}</strong></span><span>非法用户名 <strong>{{ result.invalid_count }}</strong></span></div>
-      <p class="muted">已在可用池：{{ poolCount('already_available') }} · 已在使用池：{{ poolCount('already_used') }}。失败条目会跳过，其余有效条目一并提交；系统异常时本次有效条目整体回滚。</p>
+      <p class="muted">已在用户名池：{{ poolCount('already_available') }}。失败条目会跳过，其余有效用户名已保存，批量生成时才会创建邮箱。</p>
       <el-table v-if="result.rejected_usernames.length" :data="result.rejected_usernames" max-height="280" aria-label="失败用户名及原因"><el-table-column label="用户名" min-width="150"><template #default="{ row }"><span class="rejected-name">{{ displayName(row.username) }}</span></template></el-table-column><el-table-column prop="reason" label="分类" min-width="150" /><el-table-column prop="message" label="失败原因" min-width="230" /></el-table>
-      <el-table v-if="result.created_mailboxes.length" :data="result.created_mailboxes" max-height="220" aria-label="成功生成的邮箱"><el-table-column prop="email" label="成功生成的邮箱" min-width="260" /></el-table>
     </section>
     <template #footer><el-button :disabled="busy || checking" @click="reset">重新上传</el-button><el-button :disabled="busy" @click="visible = false">关闭</el-button><el-button type="primary" :loading="busy" :disabled="!file || checking" @click="submit">开始导入</el-button></template>
   </el-dialog>
