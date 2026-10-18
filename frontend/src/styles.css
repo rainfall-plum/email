@@ -288,9 +288,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
   .mailbox-filter-grid .mailbox-sort-item { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
-  .dashboard-stat-grid { width: min(100%, 430px); margin-inline: auto; }
-  .dashboard-stat-grid > .el-col { width: 100%; flex: 0 0 100%; }
-  .dashboard-stat-grid .stat-card { width: 100%; box-sizing: border-box; }
+  .dashboard-stat-grid { width: 100%; margin-left: 0; margin-right: 0; }
+  .dashboard-stat-grid > .el-col { width: 100%; flex: 0 0 100%; display: flex; justify-content: center; }
+  .dashboard-stat-grid .stat-card { width: min(430px, 100%); box-sizing: border-box; }
   .mailbox-filter-grid,
   .outbound-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
   .mailbox-filter-grid .mailbox-search-item,
