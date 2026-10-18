@@ -50,7 +50,7 @@ onBeforeUnmount(() => { generation++; clearInterval(timer); listController?.abor
 
 <template>
   <div class="page-heading"><div><h1>发送记录</h1><p>最多尝试5次，失败后依次间隔1、5、15、30分钟。已交给 Postfix 不代表收件人已收到。</p></div><div class="page-actions"><el-button :loading="loading" @click="load">刷新</el-button><el-button type="primary" @click="router.push('/outbound/new')">发送邮件</el-button></div></div>
-  <el-card class="panel-card filter-card" shadow="never"><el-form class="filter-grid outbound-filter-grid" label-position="top"><el-form-item label="发送状态"><el-select v-model="status" @change="filter"><el-option label="全部状态" value="all" /><el-option v-for="(label, key) in labels" :key="key" :label="label" :value="key" /></el-select></el-form-item><el-form-item label="创建时间排序"><el-select v-model="sort" @change="filter"><el-option label="最新创建优先" value="created_desc" /><el-option label="最早创建优先" value="created_asc" /></el-select></el-form-item></el-form></el-card>
+  <el-card class="panel-card filter-card" shadow="never"><el-form class="filter-grid outbound-filter-grid" label-position="left"><el-form-item label="发送状态"><el-select v-model="status" @change="filter"><el-option label="全部状态" value="all" /><el-option v-for="(label, key) in labels" :key="key" :label="label" :value="key" /></el-select></el-form-item><el-form-item label="创建时间排序"><el-select v-model="sort" @change="filter"><el-option label="最新创建优先" value="created_desc" /><el-option label="最早创建优先" value="created_asc" /></el-select></el-form-item></el-form></el-card>
   <el-card class="panel-card" shadow="never">
     <el-result v-if="error" icon="error" title="发送记录加载失败"><template #extra><el-button @click="load">重新加载</el-button></template></el-result>
     <el-table v-else v-loading="loading" :data="rows" empty-text="暂无发送记录">
