@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { isAuthFailure } from '../utils/session'
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { emailApi, getApiErrorMessage } from '../api'
+import { emailApi, getApiErrorMessage, isRequestCanceled } from '../api'
 import type { EmailItem } from '../types'
 import { formatDate } from '../utils/email'
 
@@ -12,7 +12,8 @@ const route = useRoute(); const router = useRouter(); const email = ref<EmailIte
 const downloadingIds = ref<Set<number>>(new Set())
 const loadError = ref(false)
 let loadSequence = 0
-async function load() { const sequence = ++loadSequence; loading.value = true; loadError.value = false; try { const next = await emailApi.get(Number(route.params.id)); if (sequence === loadSequence) email.value = next } catch (error) { if (sequence === loadSequence) { email.value = null; loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } } finally { if (sequence === loadSequence) loading.value = false } }
+let loadController: AbortController | undefined
+async function load() { const sequence = ++loadSequence; loadController?.abort(); loadController = new AbortController(); loading.value = true; loadError.value = false; try { const next = await emailApi.get(Number(route.params.id), loadController.signal); if (sequence === loadSequence) email.value = next } catch (error) { if (sequence === loadSequence && !isRequestCanceled(error)) { email.value = null; loadError.value = true; if (!isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮件详情加载失败')) } } finally { if (sequence === loadSequence) loading.value = false } }
 function formatSize(size: number) { return size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB` }
 async function downloadAttachment(id: number, filename: string) {
   if (downloadingIds.value.has(id)) return
@@ -27,6 +28,7 @@ async function downloadAttachment(id: number, filename: string) {
 function goBack() { router.push(email.value ? `/mailboxes/${email.value.mailbox_id}` : '/mailboxes') }
 watch(() => route.params.id, load)
 onMounted(load)
+onBeforeUnmount(() => { loadSequence++; loadController?.abort() })
 </script>
 
 <template>

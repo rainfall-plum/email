@@ -4,7 +4,7 @@ import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 
-import { getApiErrorMessage, mailboxApi, tagApi } from '../api'
+import { getApiErrorMessage, isRequestCanceled, mailboxApi, tagApi } from '../api'
 import type { Mailbox, Tag } from '../types'
 import { formatDate } from '../utils/email'
 import UsernameImport from '../components/UsernameImport.vue'
@@ -37,21 +37,24 @@ function persistListState() { sessionStorage.setItem(mailboxListStateKey, JSON.s
 const dialogWidth = 'min(500px, calc(100vw - 32px))'
 let loadSequence = 0
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+let listController: AbortController | undefined
 
 async function load() {
   const sequence = ++loadSequence
+  listController?.abort()
+  listController = new AbortController()
   loading.value = true
   try {
-    const [result, tagData] = await Promise.all([
-      mailboxApi.list({ page: page.value, page_size: pageSize.value, ...filters }),
-      tagApi.list(),
-    ])
+    const result = await mailboxApi.list({ page: page.value, page_size: pageSize.value, ...filters }, listController.signal)
     if (sequence !== loadSequence) return
     if (page.value > Math.max(1, result.pages)) { page.value = Math.max(1, result.pages); persistListState(); void load(); return }
     mailboxes.value = result.items
     total.value = result.total
-    tags.value = tagData
-  } catch (error) { if (sequence === loadSequence && !isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
+  } catch (error) { if (sequence === loadSequence && !isRequestCanceled(error) && !isAuthFailure(error)) ElMessage.error(getApiErrorMessage(error, '邮箱数据加载失败，请稍后重试')) } finally { if (sequence === loadSequence) loading.value = false }
+}
+async function loadTags() {
+  try { tags.value = await tagApi.list() }
+  catch (error) { if (!isRequestCanceled(error) && !isAuthFailure(error)) ElMessage.error('标签加载失败，请稍后重试') }
 }
 function resetPageAndLoad() { page.value = 1; persistListState(); void load() }
 function toggleTag(ids: number[], id: number, refresh = true) { const index = ids.indexOf(id); if (index >= 0) ids.splice(index, 1); else ids.push(id); if (refresh) resetPageAndLoad() }
@@ -103,12 +106,12 @@ async function remove(mailbox: Mailbox) {
 }
 function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; persistListState(); void load() }
 function onPageChange(nextPage: number) { page.value = nextPage; persistListState(); void load() }
-onMounted(load)
+onMounted(() => { void load(); void loadTags() })
 watch(() => filters.search, () => {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(resetPageAndLoad, 280)
 })
-onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
+onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer); loadSequence++; listController?.abort() })
 </script>
 
 <template>

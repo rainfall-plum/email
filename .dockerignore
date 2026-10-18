@@ -1,0 +1,14 @@
+.git
+.gitignore
+AGENT.md
+.env
+backend/.pytest_cache
+backend/**/__pycache__
+frontend/node_modules
+frontend/dist
+data/database.sqlite
+data/eml
+data/attachments
+data/backup
+logs
+skills

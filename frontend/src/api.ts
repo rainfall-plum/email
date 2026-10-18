@@ -4,6 +4,14 @@ import type { OutboundDraft, OutboundEmail } from './types'
 
 import type { Attachment, DashboardStats, EmailItem, Mailbox, MailboxPage, SystemSetting, Tag } from './types'
 
+export function isRequestCanceled(error: unknown): boolean {
+  return Boolean(
+    (error as { code?: string; name?: string })?.code === 'ERR_CANCELED'
+      || (error as { name?: string })?.name === 'CanceledError'
+      || (error as { name?: string })?.name === 'AbortError',
+  )
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 10000,
@@ -90,7 +98,7 @@ export const mailboxApi = {
   async list(params: {
     page?: number; page_size?: number; search?: string; tag_ids?: number[]; tag_mode?: 'any' | 'all';
     untagged?: boolean; sort_by?: string
-  } = {}) {
+  } = {}, signal?: AbortSignal) {
     const query = new URLSearchParams()
     if (params.page) query.set('page', String(params.page))
     if (params.page_size) query.set('page_size', String(params.page_size))
@@ -100,9 +108,9 @@ export const mailboxApi = {
     if (params.untagged) query.set('untagged', 'true')
     if (params.sort_by) query.set('sort_by', params.sort_by)
     const suffix = query.toString() ? `?${query.toString()}` : ''
-    return (await api.get<MailboxPage>(`/mailboxes${suffix}`)).data
+    return (await api.get<MailboxPage>(`/mailboxes${suffix}`, signal ? { signal } : undefined)).data
   },
-  async get(id: number) { return (await api.get<Mailbox>(`/mailboxes/${id}`)).data },
+  async get(id: number, signal?: AbortSignal) { return (await api.get<Mailbox>(`/mailboxes/${id}`, signal ? { signal } : undefined)).data },
   async create(payload: { local_part: string; display_name?: string; tag_ids?: number[] }) {
     return (await api.post<Mailbox>('/mailboxes', payload)).data
   },
@@ -111,11 +119,11 @@ export const mailboxApi = {
   },
   async update(id: number, payload: Partial<Mailbox>) { return (await api.put<Mailbox>(`/mailboxes/${id}`, payload)).data },
   async remove(id: number) { await api.delete(`/mailboxes/${id}`) },
-  async emails(id: number) { return (await api.get<EmailItem[]>(`/mailboxes/${id}/emails`)).data },
+  async emails(id: number, signal?: AbortSignal) { return (await api.get<EmailItem[]>(`/mailboxes/${id}/emails`, signal ? { signal } : undefined)).data },
 }
 
 export const emailApi = {
-  async get(id: number) { return (await api.get<EmailItem>(`/emails/${id}`)).data },
+  async get(id: number, signal?: AbortSignal) { return (await api.get<EmailItem>(`/emails/${id}`, signal ? { signal } : undefined)).data },
   async downloadAttachment(id: number) {
     return (await api.get<Blob>(`/attachments/${id}/download`, { responseType: 'blob' })).data
   },
@@ -126,7 +134,7 @@ export const dashboardApi = {
 }
 
 export const tagApi = {
-  async list() { return (await api.get<Tag[]>('/tags')).data },
+  async list(signal?: AbortSignal) { return (await api.get<Tag[]>('/tags', signal ? { signal } : undefined)).data },
   async create(name: string) { return (await api.post<Tag>('/tags', { name })).data },
   async update(id: number, name: string) { return (await api.put<Tag>(`/tags/${id}`, { name })).data },
   async remove(id: number) { await api.delete(`/tags/${id}`) },
@@ -142,11 +150,11 @@ export const settingsApi = {
 export type { Attachment }
 
 export const outboundApi = {
-  async options() { return (await api.get<{ id: number; email_address: string }[]>('/outbound-emails/options')).data },
+  async options(signal?: AbortSignal) { return (await api.get<{ id: number; email_address: string }[]>('/outbound-emails/options', signal ? { signal } : undefined)).data },
   async create(payload: OutboundDraft) { return (await api.post<OutboundEmail>('/outbound-emails', payload)).data },
-  async list(params: { page: number; page_size: number; status?: string; sort: string }) {
-    return (await api.get<{ items: OutboundEmail[]; total: number }>('/outbound-emails', { params })).data
+  async list(params: { page: number; page_size: number; status?: string; sort: string }, signal?: AbortSignal) {
+    return (await api.get<{ items: OutboundEmail[]; total: number }>('/outbound-emails', { params, ...(signal ? { signal } : {}) })).data
   },
-  async get(id: number) { return (await api.get<OutboundEmail>(`/outbound-emails/${id}`)).data },
+  async get(id: number, signal?: AbortSignal) { return (await api.get<OutboundEmail>(`/outbound-emails/${id}`, signal ? { signal } : undefined)).data },
   async retry(id: number) { return (await api.post<OutboundEmail>(`/outbound-emails/${id}/retry`)).data },
 }

@@ -3,7 +3,7 @@ import { isAuthFailure } from '../utils/session'
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { outboundApi, getApiErrorMessage } from '../api'
+import { outboundApi, getApiErrorMessage, isRequestCanceled } from '../api'
 import type { OutboundEmail, OutboundStatus } from '../types'
 import { formatDate } from '../utils/email'
 
@@ -13,23 +13,27 @@ const rows = ref<OutboundEmail[]>([]); const total = ref(0); const page = ref(1)
 const status = ref('all'); const sort = ref('created_desc'); const loading = ref(false); const error = ref(false)
 const selected = ref<OutboundEmail | null>(null); const dialog = ref(false); const detailLoading = ref(false); const detailError = ref(false)
 const detailId = ref<number | null>(null); const retrying = ref<number | null>(null)
-let timer: ReturnType<typeof setInterval> | undefined; let generation = 0
+let timer: ReturnType<typeof setInterval> | undefined; let generation = 0; let listController: AbortController | undefined; let detailController: AbortController | undefined
 function sameRows(a: OutboundEmail[], b: OutboundEmail[], totalA: number, totalB: number) { return totalA === totalB && a.length === b.length && a.every((row, i) => { const next = b[i]; return next && row.id === next.id && row.updated_at === next.updated_at && row.status === next.status && row.attempt_count === next.attempt_count && row.last_error === next.last_error && row.next_attempt_at === next.next_attempt_at }) }
 async function load(background = false) {
   const request = ++generation
+  listController?.abort()
+  listController = new AbortController()
   if (!background) loading.value = true
   try {
-    const data = await outboundApi.list({ page: page.value, page_size: pageSize.value, status: status.value === 'all' ? undefined : status.value, sort: sort.value })
+    const data = await outboundApi.list({ page: page.value, page_size: pageSize.value, status: status.value === 'all' ? undefined : status.value, sort: sort.value }, listController.signal)
     if (request !== generation) return
     if (!sameRows(rows.value, data.items, total.value, data.total)) { rows.value = data.items; total.value = data.total }
     error.value = false
-  } catch { if (request === generation) error.value = true } finally { if (request === generation) loading.value = false }
+  } catch (cause) { if (request === generation && !isRequestCanceled(cause)) error.value = true } finally { if (request === generation) loading.value = false }
 }
 function filter() { page.value = 1; load() }
 async function details(id: number) {
   if (detailLoading.value) return
+  detailController?.abort()
+  detailController = new AbortController()
   detailId.value = id; dialog.value = true; selected.value = null; detailLoading.value = true; detailError.value = false
-  try { selected.value = await outboundApi.get(id) } catch { detailError.value = true } finally { detailLoading.value = false }
+  try { selected.value = await outboundApi.get(id, detailController.signal) } catch (cause) { if (!isRequestCanceled(cause)) detailError.value = true } finally { detailLoading.value = false }
 }
 async function retry(row: OutboundEmail) {
   if (retrying.value !== null) return
@@ -41,7 +45,7 @@ async function retry(row: OutboundEmail) {
   } catch (e) { if (!isAuthFailure(e)) ElMessage.error(getApiErrorMessage(e, '重试失败，请刷新记录后重试')) } finally { retrying.value = null }
 }
 onMounted(() => { load(); timer = setInterval(() => { if (!loading.value && !document.hidden && !dialog.value) void load(true) }, 5000) })
-onBeforeUnmount(() => { generation++; clearInterval(timer) })
+onBeforeUnmount(() => { generation++; clearInterval(timer); listController?.abort(); detailController?.abort() })
 </script>
 
 <template>

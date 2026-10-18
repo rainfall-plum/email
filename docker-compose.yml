@@ -1,0 +1,38 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    environment:
+      EMAIL_ENVIRONMENT: production
+      EMAIL_DATABASE_URL: sqlite:////app/data/database.sqlite
+      EMAIL_DATA_DIR: /app/data
+      EMAIL_NAMES_DIR: /app/data/names
+      EMAIL_LOG_DIR: /app/logs
+      EMAIL_ALLOWED_DOMAIN: ${EMAIL_ALLOWED_DOMAIN:-example.test}
+      EMAIL_JWT_SECRET_KEY: ${EMAIL_JWT_SECRET_KEY:?set EMAIL_JWT_SECRET_KEY in .env}
+      EMAIL_BOOTSTRAP_ADMIN_USERNAME: ${EMAIL_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      EMAIL_BOOTSTRAP_ADMIN_PASSWORD: ${EMAIL_BOOTSTRAP_ADMIN_PASSWORD:?set EMAIL_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      EMAIL_OUTBOUND_WORKER_ENABLED: ${EMAIL_OUTBOUND_WORKER_ENABLED:-false}
+    volumes:
+      - email-data:/app/data
+      - email-logs:/app/logs
+    expose:
+      - "18083"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    depends_on:
+      - api
+    ports:
+      - "${EMAIL_HTTP_PORT:-8080}:80"
+    restart: unless-stopped
+
+volumes:
+  email-data:
+  email-logs:
