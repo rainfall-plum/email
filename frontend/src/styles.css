@@ -273,8 +273,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
 .mailbox-filter-grid .el-form-item { min-width: 0; }
 .mailbox-filter-grid .el-input,
 .mailbox-filter-grid .el-select { width: 100%; }
-.mailbox-filter-grid .mailbox-match-item { grid-column: 3; }
-.mailbox-filter-grid .mailbox-sort-item { grid-column: 4; }
+.mailbox-filter-grid .mailbox-sort-item { grid-column: 3; }
+.mailbox-filter-grid .mailbox-match-item { grid-column: 4; }
 .mailbox-filter-grid .el-form-item__label { padding-right: 8px; white-space: nowrap; }
 .outbound-filter-grid { display: flex; flex-wrap: nowrap; align-items: center; gap: 22px; }
 .outbound-filter-grid .el-form-item { min-width: 0; flex: 0 0 280px; margin: 0; display: flex; align-items: center; }
@@ -286,8 +286,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
   .mailbox-filter-grid { grid-template-columns: minmax(220px, 1fr) minmax(180px, .8fr); }
   .mailbox-filter-grid .mailbox-search-item { grid-column: 1 / -1; }
   .mailbox-filter-grid .filter-tag-group { grid-column: 1 / 2; }
-  .mailbox-filter-grid .mailbox-match-item { grid-column: 2 / 3; }
-  .mailbox-filter-grid .mailbox-sort-item { grid-column: 1 / -1; }
+  .mailbox-filter-grid .mailbox-sort-item { grid-column: 2 / 3; }
+  .mailbox-filter-grid .mailbox-match-item { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .dashboard-stat-grid { width: 100%; margin-left: 0; margin-right: 0; }
@@ -297,8 +297,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
   .outbound-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
   .mailbox-filter-grid .mailbox-search-item,
   .mailbox-filter-grid .filter-tag-group { grid-column: 1 / -1; }
-  .mailbox-filter-grid .mailbox-match-item,
-  .mailbox-filter-grid .mailbox-sort-item { grid-column: 1 / -1; }
+  .mailbox-filter-grid .mailbox-sort-item,
+  .mailbox-filter-grid .mailbox-match-item { grid-column: 1 / -1; }
   .outbound-filter-grid { display: grid; }
   .outbound-filter-grid .el-form-item { width: 100%; display: block; }
   .outbound-filter-grid .el-form-item__label { display: block; padding: 0 0 8px; }
