@@ -1,0 +1,20 @@
+services:
+  api:
+    env_file:
+      - /etc/email-platform/app.env
+    environment:
+      EMAIL_ENVIRONMENT: production
+      EMAIL_DATABASE_URL: sqlite:////app/data/database.sqlite
+      EMAIL_DATA_DIR: /app/data
+      EMAIL_NAMES_DIR: /app/data/names
+      EMAIL_LOG_DIR: /app/logs
+      EMAIL_OUTBOUND_WORKER_ENABLED: ${EMAIL_OUTBOUND_WORKER_ENABLED:-true}
+    volumes:
+      - /var/lib/email-platform/data:/app/data
+      - /var/log/email-platform:/app/logs
+    ports:
+      - "127.0.0.1:18083:18083"
+
+  web:
+    ports:
+      - "127.0.0.1:18080:80"
