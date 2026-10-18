@@ -16,6 +16,12 @@ describe('API authentication and payloads', () => {
     handlers.post.mockResolvedValue({ data: { total: 1 } }); const file = new File(['{}'], 'names.json'); await mailboxApi.importUsernames(file)
     const [path, payload] = handlers.post.mock.calls[0]; expect(path).toBe('/mailboxes/import-usernames'); expect(payload.get('file')).toBe(file); expect(Array.from(payload.keys())).toEqual(['file'])
   })
+  it('includes a trimmed mailbox search in the list request', async () => {
+    handlers.get.mockResolvedValue({ data: { items: [], total: 0 } })
+    await mailboxApi.list({ page: 1, page_size: 20, search: '  Second User  ' })
+    const [path] = handlers.get.mock.calls[0]
+    expect(new URL(`http://local${path}`).searchParams.get('search')).toBe('Second User')
+  })
   it('uses the dedicated account endpoints and never persists passwords', async () => {
     handlers.get.mockResolvedValue({ data: { id: 1, username: 'admin' } }); handlers.patch.mockResolvedValue({ data: { code: 'ADMIN_CREDENTIALS_CHANGED' } })
     await adminApi.profile(); await adminApi.credentials({ current_password: 'synthetic-fixture', new_username: 'renamed' })

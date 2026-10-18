@@ -88,12 +88,13 @@ export const mailboxApi = {
     return (await api.post<ImportResult>('/mailboxes/import-usernames', body, { timeout: 60000 })).data
   },
   async list(params: {
-    page?: number; page_size?: number; tag_ids?: number[]; tag_mode?: 'any' | 'all';
+    page?: number; page_size?: number; search?: string; tag_ids?: number[]; tag_mode?: 'any' | 'all';
     untagged?: boolean; sort_by?: string
   } = {}) {
     const query = new URLSearchParams()
     if (params.page) query.set('page', String(params.page))
     if (params.page_size) query.set('page_size', String(params.page_size))
+    if (params.search?.trim()) query.set('search', params.search.trim())
     params.tag_ids?.forEach((id) => query.append('tag_ids', String(id)))
     if (params.tag_mode) query.set('tag_mode', params.tag_mode)
     if (params.untagged) query.set('untagged', 'true')

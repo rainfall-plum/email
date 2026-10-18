@@ -74,6 +74,7 @@ def list_mailboxes(
     *,
     page: int = 1,
     page_size: int = 20,
+    search: str | None = None,
     tag_ids: list[int] | None = None,
     tag_mode: str = "any",
     untagged: bool = False,
@@ -85,6 +86,16 @@ def list_mailboxes(
         raise MailboxServiceError("不支持的标签匹配方式")
 
     query = select(Mailbox).options(selectinload(Mailbox.tags))
+    normalized_search = (search or "").strip()
+    if normalized_search:
+        # Treat user input as a literal substring rather than a LIKE expression.
+        escaped_search = normalized_search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped_search}%"
+        query = query.where(
+            Mailbox.email_address.ilike(pattern, escape="\\")
+            | Mailbox.local_part.ilike(pattern, escape="\\")
+            | Mailbox.display_name.ilike(pattern, escape="\\")
+        )
     normalized_tags = list(dict.fromkeys(tag_ids or []))
     if untagged:
         query = query.where(~Mailbox.tags.any())

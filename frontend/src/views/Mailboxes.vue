@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { isAuthFailure } from '../utils/session'
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 
@@ -24,7 +24,7 @@ const count = ref(100)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-const filters = reactive({ tag_ids: [] as number[], tag_mode: 'any' as 'any' | 'all', sort_by: 'oldest_email_asc' })
+const filters = reactive({ search: '', tag_ids: [] as number[], tag_mode: 'any' as 'any' | 'all', sort_by: 'oldest_email_asc' })
 
 const mailboxListStateKey = 'mailbox-list-state'
 try {
@@ -36,6 +36,7 @@ function persistListState() { sessionStorage.setItem(mailboxListStateKey, JSON.s
 
 const dialogWidth = 'min(500px, calc(100vw - 32px))'
 let loadSequence = 0
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 async function load() {
   const sequence = ++loadSequence
@@ -103,6 +104,11 @@ async function remove(mailbox: Mailbox) {
 function onPageSizeChange(size: number) { pageSize.value = size; page.value = 1; persistListState(); void load() }
 function onPageChange(nextPage: number) { page.value = nextPage; persistListState(); void load() }
 onMounted(load)
+watch(() => filters.search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(resetPageAndLoad, 280)
+})
+onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
 </script>
 
 <template>
@@ -112,6 +118,7 @@ onMounted(load)
   </div>
   <el-card class="panel-card filter-card" shadow="never">
     <div class="filter-grid mailbox-filter-grid">
+      <el-form-item label="查找邮箱" class="mailbox-search-item"><el-input v-model="filters.search" clearable placeholder="输入邮箱地址或名称" /></el-form-item>
       <div class="filter-tag-group"><span class="filter-label">标签</span><div class="filter-tag-pills"><button v-for="tag in tags" :key="tag.id" type="button" class="tag-pill" :class="{ 'is-selected': filters.tag_ids.includes(tag.id) }" :aria-pressed="filters.tag_ids.includes(tag.id)" @click="toggleTag(filters.tag_ids, tag.id)">{{ tag.name }}</button><span v-if="!tags.length" class="muted">暂无标签</span></div></div>
       <el-form-item v-if="filters.tag_ids.length" label="匹配"><el-radio-group v-model="filters.tag_mode" @change="resetPageAndLoad"><el-radio-button value="any">任一标签</el-radio-button><el-radio-button value="all">全部标签</el-radio-button></el-radio-group></el-form-item>
       <el-form-item label="排序"><el-select v-model="filters.sort_by" @change="resetPageAndLoad"><el-option label="创建时间：最新" value="created_desc" /><el-option label="创建时间：最旧" value="created_asc" /><el-option label="最新邮件：最新" value="latest_email_desc" /><el-option label="最早邮件：最早" value="oldest_email_asc" /><el-option label="未读优先" value="unread_desc" /><el-option label="邮箱地址：A-Z" value="email_asc" /><el-option label="邮箱地址：Z-A" value="email_desc" /></el-select></el-form-item>

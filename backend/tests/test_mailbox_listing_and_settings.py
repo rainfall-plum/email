@@ -18,8 +18,8 @@ def test_mailbox_listing_filters_paginates_and_sorts(tmp_path, monkeypatch):
     db = session_factory()
     urgent = Tag(name="urgent")
     review = Tag(name="review")
-    first = Mailbox(email_address="first@example.test", local_part="first", tags=[urgent])
-    second = Mailbox(email_address="second@example.test", local_part="second", tags=[urgent, review])
+    first = Mailbox(email_address="first@example.test", local_part="first", display_name="First Name", tags=[urgent])
+    second = Mailbox(email_address="second@example.test", local_part="second", display_name="Second User", tags=[urgent, review])
     third = Mailbox(email_address="third@example.test", local_part="third")
     db.add_all([AdminUser(username="admin", password_hash=hash_password("pw")), urgent, review, first, second, third])
     db.flush()
@@ -54,6 +54,12 @@ def test_mailbox_listing_filters_paginates_and_sorts(tmp_path, monkeypatch):
             assert paged["items"][0]["email_address"] == "second@example.test"
             assert paged["items"][0]["email_count"] == 1
             assert paged["items"][0]["unread_count"] == 0
+            by_name = client.get("/api/mailboxes?search=second", headers=headers).json()
+            assert [item["email_address"] for item in by_name["items"]] == ["second@example.test"]
+            by_address = client.get("/api/mailboxes?search=FIRST%40EXAMPLE", headers=headers).json()
+            assert [item["email_address"] for item in by_address["items"]] == ["first@example.test"]
+            wildcard_literal = client.get("/api/mailboxes?search=%25", headers=headers).json()
+            assert wildcard_literal["total"] == 0
             assert client.get("/api/mailboxes?sort_by=invalid", headers=headers).status_code == 400
     finally:
         app.dependency_overrides.clear()

@@ -74,6 +74,7 @@ def _response(mailbox, metrics: tuple[int, int, object | None] | None = None) ->
 def get_mailboxes(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=128),
     tag_ids: list[int] | None = Query(default=None),
     tag_mode: str = Query("any"),
     untagged: bool = Query(False),
@@ -86,6 +87,7 @@ def get_mailboxes(
             db,
             page=page,
             page_size=page_size,
+            search=search,
             tag_ids=tag_ids,
             tag_mode=tag_mode,
             untagged=untagged,

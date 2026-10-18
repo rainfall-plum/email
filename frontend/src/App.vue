@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { HomeFilled, Menu, MessageBox, PriceTag, Setting, SwitchButton, Promotion } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { authApi } from './api'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
@@ -16,7 +16,16 @@ const mobileNavOpen = ref(false)
 watch(() => route.path, () => { mobileNavOpen.value = false })
 watch(() => route.fullPath, () => { void nextTick(() => document.getElementById('main-content')?.focus()) })
 
-function logout() {
+async function logout() {
+  try {
+    await ElMessageBox.confirm('确认退出当前管理员账号吗？', '退出登录', {
+      confirmButtonText: '退出登录',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
   authApi.logout()
 }
 let redirecting = false
@@ -45,9 +54,9 @@ onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleA
         <el-menu-item index="/mailboxes" aria-label="邮箱管理" title="邮箱管理"><el-icon><MessageBox /></el-icon><span class="menu-label">邮箱管理</span></el-menu-item>
         <el-menu-item index="/tags" aria-label="标签管理" title="标签管理"><el-icon><PriceTag /></el-icon><span class="menu-label">标签管理</span></el-menu-item>
         <el-menu-item index="/settings" aria-label="系统设置" title="系统设置"><el-icon><Setting /></el-icon><span class="menu-label">系统设置</span></el-menu-item>
-        <button type="button" class="side-menu-action logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></button>
       </el-menu>
       <div class="side-footer">
+        <button type="button" class="side-menu-action logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></button>
         <span>邮箱管理</span>
       </div>
     </el-aside>
