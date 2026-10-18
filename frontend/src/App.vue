@@ -57,6 +57,7 @@ onBeforeUnmount(() => { window.removeEventListener('email-auth-expired', handleA
         <button type="button" class="side-menu-action logout-button" aria-label="退出登录" title="退出登录" @click="logout"><el-icon><SwitchButton /></el-icon><span class="menu-label">退出登录</span></button>
       </el-menu>
     </el-aside>
+    <button v-if="mobileNavOpen" type="button" class="mobile-nav-overlay" aria-label="关闭主导航" @click="mobileNavOpen = false"></button>
     <el-container>
       <el-header class="topbar">
         <div class="topbar-title"><el-button class="mobile-menu-button" text aria-label="打开主导航" title="打开主导航" @click="mobileNavOpen = !mobileNavOpen"><el-icon><Menu /></el-icon></el-button><span class="breadcrumb">{{ route.name || 'Email Platform' }}</span><span class="environment-pill">ADMIN · INBOX</span></div>

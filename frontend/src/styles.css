@@ -259,4 +259,48 @@ button:focus-visible, a:focus-visible, input:focus-visible, .el-button:focus-vis
 .batch-count-row { display: flex; align-items: flex-end; }
 .batch-count-row .el-form-item { margin-bottom: 16px; }
 .mailbox-filter-grid { align-items: flex-start; }
+.mailbox-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.05fr) minmax(280px, 1.55fr) minmax(190px, .75fr);
+  align-items: end;
+  gap: 18px 20px;
+}
+.mailbox-filter-grid .filter-tag-group,
+.mailbox-filter-grid .mailbox-search-item,
+.mailbox-filter-grid .mailbox-sort-item { min-width: 0; width: 100%; }
+.mailbox-filter-grid .filter-tag-group { flex: none; }
+.mailbox-filter-grid .el-form-item { min-width: 0; }
+.mailbox-filter-grid .el-input,
+.mailbox-filter-grid .el-select { width: 100%; }
+.outbound-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); align-items: end; }
+.outbound-filter-grid .el-form-item { min-width: 0; width: 100%; }
+.outbound-filter-grid .el-select { width: 100%; }
+.mobile-nav-overlay { display: none; }
 @media (max-width: 640px) { .flat-tag-columns { grid-template-columns: 1fr; } .filter-tag-group { min-width: 100%; } }
+@media (max-width: 900px) {
+  .mailbox-filter-grid { grid-template-columns: minmax(220px, 1fr) minmax(180px, .8fr); }
+  .mailbox-filter-grid .mailbox-search-item { grid-column: 1 / -1; }
+  .mailbox-filter-grid .filter-tag-group { grid-column: 1 / 2; }
+  .mailbox-filter-grid .mailbox-sort-item { grid-column: 2 / 3; }
+}
+@media (max-width: 640px) {
+  .dashboard-stat-grid { width: min(100%, 430px); margin-inline: auto; }
+  .dashboard-stat-grid > .el-col { width: 100%; flex: 0 0 100%; }
+  .dashboard-stat-grid .stat-card { width: 100%; box-sizing: border-box; }
+  .mailbox-filter-grid,
+  .outbound-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+  .mailbox-filter-grid .mailbox-search-item,
+  .mailbox-filter-grid .filter-tag-group { grid-column: 1 / -1; }
+  .mailbox-filter-grid .mailbox-sort-item { grid-column: 1 / -1; }
+  .outbound-filter-grid .el-form-item { width: 100%; }
+  .mobile-nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    border: 0;
+    padding: 0;
+    background: rgba(18, 25, 23, .34);
+    cursor: pointer;
+  }
+}
